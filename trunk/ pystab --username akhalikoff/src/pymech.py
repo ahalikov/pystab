@@ -1,10 +1,7 @@
 # coding=windows-1251
 
 """
-Модуль для получения уравнений движения механических систем в символьном виде.
-
-Framework for derivation of equations of motion of mechanical systems
-in symbolic form.
+Module for symbolic derivation of equations of motion of mechanical systems.
 """
 
 from ctypes import ArgumentError
@@ -270,12 +267,14 @@ class MechanicalFrame:
         """
         m = len(self.q_list)
         n = len(self.dhc_eqns)
-        eqns = {}
 
         # Lagrange's multipliers
         self.lambda_list = [Symbol('lambda' + str(i)) for i in range(n)]
-        for i in range(m):
-            tmp = lagrange_equations_lhs(self.lagrangian, self.q_list[i])
+
+        # Equations
+        eqns = {}
+        for q in self.q_list:
+            tmp = lagrange_equations_lhs(self.lagrangian, q) - self.joint_forces.get(q, 0)
             for j in range(n):
                 tmp -= self.lambda_list[j] * self.dhc_matrix[j, i]
             eqns[diff(self.q_list[i], t, t)] = tmp
@@ -378,7 +377,6 @@ class MechanicalFrame:
                         tmp = simplify(tmp.subs(point))
                 finally:
                     self.manifold_equations[k] = tmp
-
         return self.manifold_equations
 
     def form_perturbed_equations(self, motion_equations={}, manifold={}):
@@ -388,10 +386,7 @@ class MechanicalFrame:
         self.perturbed_equations = {}
         if not isinstance(motion_equations, dict):
             raise ArgumentError, "motion_equations must be dict"
-        
-        n = self.q_dim
-        m = len(self.u_dependent)
-        
+                
         # Lets create array of perturbed variables
         self.x = {}
         self.x_list = []
@@ -402,7 +397,7 @@ class MechanicalFrame:
         i = 1
         for k in motion_equations.keys():
             if k in self.a_list:
-                x_i = Symbol('x' + str(n + i))(t)
+                x_i = Symbol('x' + str(self.q_dim + i))(t)
                 self.x_list.append(x_i)
                 self.x[self.find_velocity(k)] = x_i
                 i += 1
@@ -500,84 +495,3 @@ class MechanicalFrame:
         """
         self.dhc_eqns = dhc_eqns_list
 
-class MatrixTemplate():
-
-    def define_coordinates(self, qdim):
-        """
-        Generalized coordinates, speeds and accelerations
-        """
-        self.qdim = qdim
-        q, u, a = gcs('q', qdim, True)
-        self.q_list = q
-        self.qd_list = u
-        self.q2d_list = a
-        return self.q_list, self.qd_list, self.q2d_list
-
-    def form_ke_matrixes(self):
-        """
-        Kinetic energy
-        """
-        n = self.qdim
-        self.ke2 = zeros([n, n])
-        self.ke1 = zeros([n, 1])
-        for i in range(n):
-            for j in range(n):
-                if i <= j:
-                    self.ke2[i, j] = Symbol('a' + str(i+1) + str(j+1))
-                else:
-                    self.ke2[i, j] = self.ke2[j, i]
-            self.ke1[i, 0] = Symbol('c' + str(i+1))
-        self.ke0 = Symbol('d')
-        return self.ke2, self.ke1, self.ke0
-
-    def form_ke_partition(self):
-        self.ke_partition = {}
-        
-
-    def form_dhc_matrix(self, qdep_dim):
-        n = self.qdim
-        self.qdep_dim = m = qdep_dim
-        self.dhc_matrix = zeros([m, n - m])
-        for i in range(m):
-            for j in range(n - m):
-                self.dhc_matrix[i, j] = Symbol('b' + str(i+1) + str(j+1))        
-        self.qd_indep = Matrix([self.qd_list[i] for i in range(n-m)])
-        self.qd_dep = Matrix([self.qd_list[n - m + i] for i in range(m)])
-        self.q_indep = Matrix([self.q_list[i] for i in range(n-m)])
-        self.q_dep = Matrix([self.q_list[n - m + i] for i in range(m)])
-        return self.dhc_matrix
-
-    def form_shulgins_equations(self):
-
-        n = self.qdim
-        m = self.qd_dep.shape[0]
-        
-        assert (m, n - m) == self.dhc_matrix.shape
-
-        Arr = self.ke2[0:n-m, 0:n-m]
-        Ars = self.ke2[0:n-m, n-m:]
-        Ass = self.ke2[n-m:n, n-m:n]
-        B = self.dhc_matrix
-
-        r = self.qd_indep
-        r_t = r.transpose()
-        B_t = B.transpose()
-
-        # Reduced lagrangian
-        L = 1.0/2*(r_t*Arr*r + 2*r_t*Ars*B*r + r_t*B_t*Ass*(B*r))
-        L = L[0] - self.pe
-        
-        equations = lagrange_equations_lhs(L, self.q_indep)
-        
-        return equations
-
-    def set_ke_matrixes(self, ke2_matrix, ke1_vector, ke0_scalar):
-        self.ke2 = ke2_matrix
-        self.ke1 = ke1_vector
-        self.ke0 = ke0_scalar
-
-    def set_potential_energy(self, pe_scalar):
-        self.pe = pe_scalar
-
-    def set_dhc_matrix(self, dhc_matrix):
-        self.dhc_matrix = dhc_matrix

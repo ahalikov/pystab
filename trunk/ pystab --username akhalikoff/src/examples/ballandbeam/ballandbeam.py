@@ -134,34 +134,6 @@ def bb_main():
 
     # Корни характ. многочлена
     eig = A.eigenvals()
-    #pprint(eig)
-    
+    #pprint(eig)   
 
-def bb_template():
-    """
-    Matrix template
-    """
-    mt = MatrixTemplate()
-    q,u,a = mt.define_coordinates(3)
-    r,theta,alpha = q
-    dr,dtheta,dalpha = u
-    T2, T1, T0 = mt.form_ke_matrixes()
 
-    # Making structure as ball and beam system
-    for i in range(3):
-        for j in range(3):
-            T2[i, j] = 0 if i != j else T2[i, j]
-        T1[i, 0] = 0
-    T2[1,1] = Symbol('a22')(r**2)
-    T0 = 0
-    #print T2
-    mt.set_ke_matrixes(T2, T1, T0)
-    #print mt.ke2
-
-    B = mt.form_dhc_matrix(1)
-    B[0,0] = 0
-    B[0,1] = Symbol('b12')(theta, alpha)
-    #print mt.dhc_matrix
-
-    pe = Symbol('U')(r, alpha)
-    mt.set_potential_energy(pe)
