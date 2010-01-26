@@ -3,5 +3,8 @@
 __author__="Artur"
 __date__ ="$26.01.2010 16:07:56$"
 
+from pymech import *
+import examples.ballandbeam.ballandbeam
+
 if __name__ == "__main__":
-    print "Hello World"
+    pass

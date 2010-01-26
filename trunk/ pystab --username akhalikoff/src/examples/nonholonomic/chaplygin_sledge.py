@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding=windows-1251
 
 __author__="Artur"
 __date__ ="$26.01.2010 16:07:56$"
