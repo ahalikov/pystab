@@ -16,12 +16,12 @@ setup (
   author = 'Artur',
   author_email = 'akhalikoff@gmail.com',
 
-  summary = '',
+  summary = "Pystab is a tool for stability and stabilization analysis of \
+    dynamic systems. It also supports symbolic derivation of the equations \
+    of motion of mechanical systems using Sympy.",
   url = '',
   license = '',
   long_description= 'Long description of the package',
 
   # could also include long_description, download_url, classifiers, etc.
-
-  
 )
