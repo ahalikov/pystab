@@ -1,9 +1,9 @@
-# coding=windows-1251
+# coding=utf-8
 
 __author__="Artur"
 __date__ ="$26.01.2010 16:07:56$"
 
-from MechanicalFrame import *
+from pystab.mechanics import *
 
 def sp_main():
 
