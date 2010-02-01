@@ -70,10 +70,6 @@ bb.form_constraints_matrix([dhc_eqn], [dalpha])
 eqns = bb.form_shulgins_equations(normalized=True, expanded=False)
 #printm(eqns[d2theta])
 
-# Добавляю еще одну переменную - силу тока
-current = bb.add_coordinates('q', 1)
-gamma, dgamma, d2gamma = current
-
 # Добавляю параметры уравнения
 p2 = bb.add_parameters('La Ra Kb K2 U U0 gamma0')
 La, Ra, Kb, K2, U, U0, gamma0 = p2
@@ -88,14 +84,12 @@ gamma0 - некоторое значение тока, соответствую�
 """
 
  # Делаю замену tau = Kg * K2 * i
-eqns[d2theta] = eqns[d2theta].subs({tau: Kg*K2*gamma})
+#eqns[d2theta] = eqns[d2theta].subs({tau: Kg*K2*gamma})
 #pprint(eqns)
 
 # Добавляю уравнение для тока
-current_eqn = La*dgamma + Ra*gamma + Kb*dtheta - U
-eqns[dgamma] = U/La - (Ra/La)*gamma - (Kb/La)*dtheta
-
-#pprint(current_eqn)
+#current_eqn = La*dgamma + Ra*gamma + Kb*dtheta - U
+#eqns[dgamma] = U/La - (Ra/La)*gamma - (Kb/La)*dtheta
 
 # Положение равновесия
 q0, u0 = bb.define_equilibrium_point(eqns)
@@ -124,12 +118,12 @@ p0 = {
 p0[gamma0] = gamma0_eqn[0].subs(p0)
 
 # Уравнения возмущенного движения
-peqns = bb.form_perturbed_equations(eqns, manifold)
+#peqns = bb.form_perturbed_equations(eqns, manifold)
 #pprint(peqns[dgamma])
 #pprint(peqns[d2theta])
 
 #fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
-fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
+#fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
 #dx6 = bb.x[dtheta].diff(t)
 #pprint(fa_eqns)
 
@@ -137,25 +131,17 @@ fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified
 dx =  [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
-#pprint(A)
+pprint(A)
 #print A.tolist()
 
 # Корни характ. многочлена
 #eig = A.eigenvals()
 #pprint(eig)
 
-B = Matrix([0, 0, 0, 1/0.2e-3, 0, 1])
+#B = Matrix([0, 0, 0, 1/0.2e-3, 0, 1])
 #pprint(B)
 
 #print "Пара A,B управляема!" if is_controllable(A, B) else "Пара A,B не управляема!"
 #reg = LQRegulator(A, B)
 #u = reg.find_control(time=5)
 #print u
-
-from pystab.integration.ode import rk45
-
-def deriv(y, t):
-    return y
-
-sol = rk45(deriv, [1], 1, step=1e-1)
-#print sol
