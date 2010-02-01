@@ -14,7 +14,6 @@ def ctrb(A, B):
     Calculates the controllability matrix for pair A, B.
     """
     n = A.shape[0]
-    m = B.shape[1]
     assert n == A.shape[1] and n == B.shape[0]
     C = zeros([n, n])
     C[:, 0] = B
@@ -28,9 +27,8 @@ def matrix_rank(A, tol=1e-8):
     s = svd(matrix2numpy(A), compute_uv=0)
     return sum(where(s > tol, 1, 0))
 
-def row2mtx(row, n, debug=False):
+def row2mtx(row, n):
     mtx = [row[i*n : (i+1)*n] for i in range(n)]
-    if debug: print mtx
     return Matrix(mtx)
 
 def mtx2row(mtx, numpyarr=False):
@@ -45,7 +43,7 @@ def is_controllable(A, B):
 
 class LQRegulator:
 
-    def __init__(self, A, B, time=5):
+    def __init__(self, A, B):
 
         assert A.is_square == True
         assert A.shape[0] == B.shape[0]
