@@ -7,7 +7,7 @@ from sympy.matrices.matrices import eye
 from sympy import Matrix, matrix2numpy, zeros
 from numpy import sum, where, linspace, array
 from numpy.linalg import svd
-from scipy import integrate
+#from scipy import integrate
 
 def ctrb(A, B):
     """
