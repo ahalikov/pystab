@@ -1,5 +1,5 @@
-__author__="Halikov_AA"
-__date__ ="$26.01.2010 14:27:30$"
+__author__="Artur"
+__date__ ="$03.02.2010 1:45:57$"
 
 from setuptools import setup,find_packages
 
@@ -16,9 +16,7 @@ setup (
   author = 'Artur',
   author_email = 'akhalikoff@gmail.com',
 
-  summary = "Pystab is a tool for stability and stabilization analysis of \
-    dynamic systems. It also supports symbolic derivation of the equations \
-    of motion of mechanical systems using Sympy.",
+  summary = '',
   url = '',
   license = '',
   long_description= 'Long description of the package',
