@@ -116,9 +116,9 @@ p0 = {
     # Beam - steel rod
     l: 400e-3, l1: 160e-3, R: 55e-3, M: 0.5, Jm: 2.66e-2,
     # Electric part
-    Ra: 9, La: 0.2e-3, K2: 1e-1, Kb: 1e-1,
+    Ra: 9, La: 0.2e-3, K2: 1.4, Kb: 1e-1,
     # Other
-    g: 9.8, rho0: 200e-3, Kg: 75
+    g: 9.8, rho0: 200e-3, Kg: 75.0
 }
 
 p0[gamma0] = gamma0_eqn[0].subs(p0)
@@ -137,25 +137,20 @@ fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified
 dx =  [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
-#pprint(A)
-#print A.tolist()
+pprint(A)
+print A.tolist()
 
 # Корни характ. многочлена
 #eig = A.eigenvals()
 #pprint(eig)
 
-B = Matrix([0, 0, 0, 1/0.2e-3, 0, 1])
-#pprint(B)
+B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
+#B = Matrix([0, 0, 0, 1/La, 0, 0])
+pprint(B)
 
-#print "Пара A,B управляема!" if is_controllable(A, B) else "Пара A,B не управляема!"
-#reg = LQRegulator(A, B)
-#u = reg.find_control(time=5)
-#print u
+C = ctrb(A, B)
+#pprint(C)
 
-from pystab.integration.ode import rk45
-
-def deriv(y, t):
-    return y
-
-sol = rk45(deriv, [1], 1, step=1e-1)
-#print sol
+reg = LQRegulator(A, B)
+u = reg.find_control(time=5)
+print u

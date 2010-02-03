@@ -3,64 +3,75 @@
 __author__="Artur"
 __date__ ="$01.02.2010 13:40:10$"
 
-from numpy import zeros
+from numpy import zeros, linspace
 
-def rk45(func, y0, t1, t0=0.0, step=1e-2, whole=True):
-        
-    y = y0
-    t = t0
-    h = step
+def step_rkf45(derivs, x, t, h):
+    """
+    Шаг метода Рунге-Кутты 4 порядка.
+    """
+    int_h = lambda f: h * f
+    sum_k = lambda x, k1, k2, k3, k4: x + (k1 + 2*k2 + 2*k3 + k4)/6.0
+    
+    # Calculating k1, k2, k3, k4 and k5
+    k1 = map(int_h, derivs(x, t))
+    k2 = map(int_h, derivs(map(lambda xi, ki: xi + ki/2.0, x, k1), t + h/2))
+    k3 = map(int_h, derivs(map(lambda xi, ki: xi + ki/2.0, x, k2), t + h/2))
+    k4 = map(int_h, derivs(map(lambda xi, ki: xi + ki, x, k3), t + h))
 
-    # Number of equations
+    # Calculating x
+    x = map(sum_k, x, k1, k2, k3, k4)
+    
+    return x
+
+def odeint(derivs, x0, t1, t0=0.0, h=1e-3, step=step_rkf45, last=True):
+    """
+    Численное интегрирование ОДУ.
+    """
     try:
-        nequ = len(y0)
+        nequ = len(x0)
     except:
         nequ = 1
 
-    # Number of steps
-    steps_num = int(round(t1 - t0) / h) + 1
+    x = x0
+    n = int(round(t1 - t0) / h)
 
-    # All points of solution
-    path = zeros([steps_num, nequ + 1])
+    slv = zeros([n + 1, nequ + 1])
+    slv[0, 0] = t0
+    slv[0, 1:] = x
 
-    # Function definitions
-    int_h = lambda f: h * f
-    sum_k = lambda y, k1, k2, k3, k4: y + (k1 + 2*k2 + 2*k3 + k4)/6.0
-        
-    for i in range(steps_num):
-
-        path[i] = [0.0 for i in range(nequ)]
-
-        if i == 0:
-            path[i][0] = t0
-
+    for i in range(1, n + 1):
         t = t0 + i*h
+        x = step(derivs, x, t, h)
+        slv[i, 0] = t
+        slv[i, 1:] = x
 
-        # Calculating k1
-        f1 = func(y, t)
-        k1 = map(int_h, f1)
+    return x if last else slv
 
-        # Calculating k2
-        f2 = map(lambda yi, ki: func(yi + ki/2.0, t + h/2), y, k1)
-        k2 = map(int_h, f2)
+def scipy_odeint(derivs, x0, t1, t0=0.0, h=1e-3, last=True):
+    """
+    Обертка для функции odeint из библиотеки LAPACK для числ. интегрирования ОДУ.
+    Работает быстрее чем самописная odeint выше, но для использования нужно
+    установить библиотеку scipy (scipy.org).
+    """
+    from scipy.integrate import odeint
+    points = int(round((t1 - t0)/h))
+    t = linspace(0, t1, points)
+    x = odeint(derivs, x0, t)
+    return x[-1] if last else x
 
-        # Calculating k3
-        f3 = map(lambda yi, ki: func(yi + ki/2.0, t + h/2), y, k2)
-        k3 = map(int_h, f3)
 
-        # Calculating k4
-        f4 = map(lambda yi, ki: func(yi + ki, t + h), y, k3)
-        k4 = map(int_h, f4)
+"""
+For quick tests
+"""
+def main():
+    # x' = x
+    f = lambda x, t: x
+    s = odeint(f, [1], 1, h=1e-1)
+    print s
 
-        # Calculating y
-        y = map(sum_k, y, k1, k2, k3, k4)
-        path[t] = y
+    print scipy_odeint(f, [1], 1)
 
-        print t, y
-        #print t, h, y, k1, k2, k3, k4
-        
-        
-
-    return path if whole else y
+if __name__ == '__main__':
+    main()
 
 #End

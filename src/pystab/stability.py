@@ -3,11 +3,10 @@
 __author__="Artur"
 __date__ ="$26.01.2010 16:07:56$"
 
-from sympy.matrices.matrices import eye
-from sympy import Matrix, matrix2numpy, zeros
-from numpy import sum, where, linspace, array
-from numpy.linalg import svd
-#from scipy import integrate
+from ctypes import ArgumentError
+from numpy import array, matrix, zeros, eye, sum, where
+from numpy.linalg import svd, inv
+from pystab.integration.ode import *
 
 def ctrb(A, B):
     """
@@ -15,7 +14,7 @@ def ctrb(A, B):
     """
     n = A.shape[0]
     assert n == A.shape[1] and n == B.shape[0]
-    C = zeros([n, n])
+    C = matrix(zeros([n, n]))
     C[:, 0] = B
     i = 1
     while i < n:
@@ -24,17 +23,24 @@ def ctrb(A, B):
     return C
 
 def matrix_rank(A, tol=1e-8):
-    s = svd(matrix2numpy(A), compute_uv=0)
+    s = svd(A, compute_uv=0)
     return sum(where(s > tol, 1, 0))
 
 def row2mtx(row, n):
-    mtx = [row[i*n : (i+1)*n] for i in range(n)]
-    return Matrix(mtx)
+    mtx = matrix(zeros([n, n]))
+    for i in range(n):
+        for j in range(n):
+            if isinstance(row, matrix):
+                mtx[i, j] = row[0, i*n + j]
+            else:
+                mtx[i, j] = row[i*n + j]
+    return mtx
 
-def mtx2row(mtx, numpyarr=False):
-    row = [i for i in mtx]
-    if numpyarr:
-        row = array(row)
+def mtx2row(mtx):
+    row = []
+    for i in range(mtx.shape[0]):
+        for j in range(mtx.shape[1]):
+            row.append(mtx[i, j])
     return row
 
 def is_controllable(A, B):
@@ -45,7 +51,7 @@ class LQRegulator:
 
     def __init__(self, A, B):
 
-        assert A.is_square == True
+        assert A.shape[0] == A.shape[1]
         assert A.shape[0] == B.shape[0]
 
         self.sys_dim = A.shape[0]
@@ -62,16 +68,14 @@ class LQRegulator:
         """
         n = self.B.shape[0]
         # Checking controllability
-        assert is_controllable(self.A, self.B) == True
-        t = linspace(0, time, 10000)
+        if not is_controllable(self.A, self.B):
+            raise ArgumentError, "Pair A,B is not controllable."
         # Initial values
-        c0 = array([0 for i in range(n*n)])
+        C0 = array([0 for i in range(n*n)])
         # Integration of diff. equations
-        y = integrate.odeint(self.deriv, c0, t)
-        # Take only last values
-        y = row2mtx(y[y.shape[0]-1].tolist(), n)
-        self.C = y
-        self.control = -self.beta.inv() * self.B.transpose() * y
+        C = scipy_odeint(self.deriv, C0, time, h=1e-2)
+        self.C = row2mtx(C, n)
+        self.control = -inv(self.beta) * self.B.transpose() * self.C
         return self.control
 
     def deriv(self, C, t):
@@ -79,12 +83,30 @@ class LQRegulator:
         Right part of the Lyapunov-Bellman-Riccati equation
         """
         m = self.B.shape[0]
-        BBiBt = self.B * self.beta.inv() * self.B.transpose()
-        C_mtx = row2mtx(Matrix(C), m)
+        BBiBt = self.B * inv(self.beta) * self.B.transpose()
+        C_mtx = row2mtx(matrix(C), m)
         res = -C_mtx*BBiBt*C_mtx + self.A.transpose()*C_mtx + C_mtx*self.A + self.alpha
         return mtx2row(res)
 
     def get_control(self):
         return self.control
+
+class StateSpace:
+    def __init__(self, A, B, C):
+        self.A = A
+        self.B = B
+        self.C = C
+
+"""
+For quick tests
+"""
+def main():
+    A = matrix([[0, 1, 0], [1, 0, 1], [0, 0, 0]])
+    B = matrix([0, 0, 1]).transpose()
+    lq = LQRegulator(A, B)
+    print lq.find_control()
+
+if __name__ == '__main__':
+    main()
 
 #End

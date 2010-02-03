@@ -1,36 +1,45 @@
 # coding=utf-8
 
-__author__="Artur"
-__date__ ="$01.02.2010 14:35:33$"
+__author__="artur"
+__date__ ="$01.02.2010 19:05:06$"
 
-from matplotlib.figure import Figure
-from matplotlib.figure import SubplotParams
-from numpy.oldnumeric.functions import arange
+from numpy import matrix
+import matplotlib.pyplot as plt
+from pylab import *
 
-fig = Figure(figsize=(4,3), dpi=85,facecolor='white',edgecolor='lightblue',
-    linewidth = 4.0, frameon = True,
-    subplotpars=SubplotParams(left=0.1, bottom=0.1, right=0.9,top=0.9,wspace=0.1,hspace=0.1)
-)
+from pystab.integration.ode import *
+from pystab.stability import *
 
-myplot = fig.add_subplot(2,2,3)
-x1 = arange(0.0, 5.0, 0.1)
-x2 = arange(0.0, 5.0, 0.02)
+A = matrix([
+    [0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 0.137500000000000],
+    [0, 0, 0, -45000.0000000000, 0, -500.000000000000],
+    [0, 0, -7.00000000000000, 0, 0, 0],
+    [-0.759544216220503, 0, 0, 3945.68424010651, 0, 0]
+])
 
-def f(t):
-    s1 = sin(2*pi*t)
-    e1 = exp(-t)
-    return multiply(s1,e1)
+B = matrix([0, 0, 0, 1/0.2e-3, 0, 0]).transpose()
 
-line2 = self.subplot1.plot(x2, f(x2), color='blue')
-line1 = self.subplot1.plot(x1, f(x1), 'ro')
+u = matrix([0.994326034246608, 0.116028092267172, -18.251892618346,
+    -0.134385383269116, 2.43091742881793, -0.910486143326368])
 
-#scrolled window
+def f1(x, t):
+    dx = A * matrix(x).transpose()
+    return mtx2row(dx)
 
-scrolledwindow1 = gtk.ScrolledWindow()
-scrolledwindow1.show ()
-vbox1.pack_start(self.scrolledwindow1, True, True, 0)
-scrolledwindow1.set_border_width (8)
-#
-canvas = FigureCanvas(self.figure1) # «упаковать» диграмму внутрь gtk.DrawingArea
-canvas.set_size_request(700, 500) # минимальнй размер области рисования
-scrolledwindow1.add_with_viewport(self.canvas)
+def f2(x, t):
+    dx = A * matrix(x).transpose() + B * u
+    return mtx2row(dx)
+
+x0 = [1e-3, 0.004, 2e-3, 1e-4, 1e-4, 1e-4]
+slv = scipy_odeint(f2, x0, t0=0, t1=5, last=False, h=1e-1)
+
+print slv
+
+#plt.figure(1)
+#plt.plot(slv[:,0], slv[:,5])
+#plt.grid(True)
+#plt.show()
+
+#End
