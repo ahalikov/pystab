@@ -68,8 +68,8 @@ class LQRegulator:
         """
         n = self.B.shape[0]
         # Checking controllability
-        if not is_controllable(self.A, self.B):
-            raise ArgumentError, "Pair A,B is not controllable."
+        #if not is_controllable(self.A, self.B):
+        #    raise ArgumentError, "Pair A,B is not controllable."
         # Initial values
         C0 = array([0 for i in range(n*n)])
         # Integration of diff. equations
