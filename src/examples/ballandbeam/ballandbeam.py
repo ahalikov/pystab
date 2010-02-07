@@ -49,6 +49,7 @@ T = 1.0/2*(k*m*drho**2 + (J + m*(rho**2))*dalpha**2 + Jm*dtheta**2)
 P = g*sin(alpha)*(m*rho + 1.0/2*M*l)
 # Функция Лагранжа
 L =  T - P
+#pprint(L)
 bb.set_lagrangian(L)
 
 # Уравнение связи
@@ -68,7 +69,7 @@ bb.form_constraints_matrix([dhc_eqn], [dalpha])
 
 # Уравнения Шульгина для r, theta, alpha
 eqns = bb.form_shulgins_equations(normalized=True, expanded=False)
-#printm(eqns[d2theta])
+#pprint(eqns[d2theta])
 
 # Добавляю еще одну переменную - силу тока
 current = bb.add_coordinates('q', 1)
@@ -89,12 +90,11 @@ gamma0 - некоторое значение тока, соответствую�
 
  # Делаю замену tau = Kg * K2 * i
 eqns[d2theta] = eqns[d2theta].subs({tau: Kg*K2*gamma})
-#pprint(eqns)
+#pprint(eqns[d2theta])
 
 # Добавляю уравнение для тока
 current_eqn = La*dgamma + Ra*gamma + Kb*dtheta - U
 eqns[dgamma] = U/La - (Ra/La)*gamma - (Kb/La)*dtheta
-
 #pprint(current_eqn)
 
 # Положение равновесия
@@ -105,9 +105,10 @@ q0[alpha] = 0
 q0[gamma] = gamma0
 #print q0, u0
 manifold = bb.form_equilibrium_manifold_equations(eqns, {U: U0})
-#print "Положение равновесия:"
+#print "Equilibrium point:"
 #pprint(manifold)
 gamma0_eqn = solve(manifold[d2theta], gamma0)
+#pprint(gamma0_eqn)
 
 # Численные параметры
 p0 = {
@@ -122,35 +123,61 @@ p0 = {
 }
 
 p0[gamma0] = gamma0_eqn[0].subs(p0)
+#print p0[gamma0]
 
 # Уравнения возмущенного движения
 peqns = bb.form_perturbed_equations(eqns, manifold)
 #pprint(peqns[dgamma])
-#pprint(peqns[d2theta])
 
 #fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
-fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
+#fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
 #dx6 = bb.x[dtheta].diff(t)
 #pprint(fa_eqns)
 
+x1 = bb.x[rho]
+x2 = bb.x[theta]
+x3 = bb.x[alpha]
+x5 = bb.x[drho]
+x6 = bb.x[dtheta]
+
+printm(bb.reduced_lagrangian)
+tmp1 = bb.dhc_matrix[0, 1]*pdiff(bb.reduced_lagrangian, alpha)
+for q in bb.q_list:
+    u = q.diff(t)
+    if u in bb.x:
+        tmp1 = tmp1.subs(u, bb.x.get(u) + bb.u0.get(u))
+    tmp1 = tmp1.subs(q, bb.x.get(q) + bb.q0.get(q))
+
+tmp1 = pdiff(tmp1, x2)
+
+#printm(tmp1)
+
+x_0 = [(x, 0) for x in bb.x.values()]
+
+eqn = peqns[d2theta]
+#tmp = (pdiff(eqn, x3).subs({x1:0, x3:0, x5:0, x6:0}))
+#pprint(tmp)
+
+
+
 # Матрица коэффициентов
-dx =  [x.diff(t) for x in bb.x_list]
-fa_eqns_sorted = [fa_eqns[k] for k in dx]
-A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
-pprint(A)
-print A.tolist()
+#dx =  [x.diff(t) for x in bb.x_list]
+#fa_eqns_sorted = [fa_eqns[k] for k in dx]
+#A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
+#pprint(A)
+#print A.tolist()
 
 # Корни характ. многочлена
 #eig = A.eigenvals()
 #pprint(eig)
 
-B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
+#B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
 #B = Matrix([0, 0, 0, 1/La, 0, 0])
-pprint(B)
+#pprint(B)
 
-C = ctrb(A, B)
+#C = ctrb(A, B)
 #pprint(C)
 
-reg = LQRegulator(A, B)
-u = reg.find_control(time=5)
-print u
+#reg = LQRegulator(A, B)
+#u = reg.find_control(time=5)
+#print u

@@ -7,6 +7,7 @@ __date__ ="$26.01.2010 16:07:56$"
 Ball&Beam System
 """
 
+import matplotlib.pyplot as plt
 from pystab.stability import *
 from pystab.mechanics import *
 
@@ -83,25 +84,21 @@ U0 - значение напряжения на равновесии,
 gamma0 - некоторое значение тока, соответствующее положению равновесия системы.
 """
 
- # Делаю замену tau = Kg * K2 * i
-#eqns[d2theta] = eqns[d2theta].subs({tau: Kg*K2*gamma})
+# Делаю замену tau = Kg * K2 * (U/Ra - (Kb/Ra)*dtheta),
+# (U/Ra - (Kb/Ra)*dtheta) - из закона Киркгофа, при La~0.
+eqns[d2theta] = eqns[d2theta].subs({tau: -(Kg*K2*Kb/Ra)*dtheta})
 #pprint(eqns)
-
-# Добавляю уравнение для тока
-#current_eqn = La*dgamma + Ra*gamma + Kb*dtheta - U
-#eqns[dgamma] = U/La - (Ra/La)*gamma - (Kb/La)*dtheta
 
 # Положение равновесия
 q0, u0 = bb.define_equilibrium_point(eqns)
 q0[rho] = rho0
 q0[theta] = 0
 q0[alpha] = 0
-q0[gamma] = gamma0
+
 #print q0, u0
-manifold = bb.form_equilibrium_manifold_equations(eqns, {U: U0})
-#print "Положение равновесия:"
-#pprint(manifold)
-gamma0_eqn = solve(manifold[d2theta], gamma0)
+manifold = bb.form_equilibrium_manifold_equations(eqns)
+print "Equilibrium point:"
+pprint(manifold)
 
 # Численные параметры
 p0 = {
@@ -110,25 +107,22 @@ p0 = {
     # Beam - steel rod
     l: 400e-3, l1: 160e-3, R: 55e-3, M: 0.5, Jm: 2.66e-2,
     # Electric part
-    Ra: 9, La: 0.2e-3, K2: 1e-1, Kb: 1e-1,
+    Ra: 9, La: 0.2e-3, K2: 10, Kb: 10,
     # Other
     g: 9.8, rho0: 200e-3, Kg: 75
 }
 
-p0[gamma0] = gamma0_eqn[0].subs(p0)
-
 # Уравнения возмущенного движения
-#peqns = bb.form_perturbed_equations(eqns, manifold)
-#pprint(peqns[dgamma])
+peqns = bb.form_perturbed_equations(eqns, manifold)
 #pprint(peqns[d2theta])
 
 #fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
-#fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
+fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
 #dx6 = bb.x[dtheta].diff(t)
 #pprint(fa_eqns)
 
 # Матрица коэффициентов
-dx =  [x.diff(t) for x in bb.x_list]
+dx = [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
 pprint(A)
@@ -138,10 +132,31 @@ pprint(A)
 #eig = A.eigenvals()
 #pprint(eig)
 
-#B = Matrix([0, 0, 0, 1/0.2e-3, 0, 1])
+B = Matrix([0, 0, 0, 0, 75*10/9])
 #pprint(B)
 
-#print "Пара A,B управляема!" if is_controllable(A, B) else "Пара A,B не управляема!"
-#reg = LQRegulator(A, B)
-#u = reg.find_control(time=5)
+#pprint(ctrb(A,B).tolist())
+#if not is_controllable(A, B):
+#    print "Pair A,B is not controllable."
+    
+reg = LQRegulator(A, B)
+u = reg.find_control(time=5)
 #print u
+
+def f1(x, t):
+    dx = A * matrix(x).transpose()
+    return mtx2row(dx)
+
+def f2(x, t):
+    dx = A * matrix(x).transpose() + B * u
+    return mtx2row(dx)
+
+x0 = [1e-3, 0.004, 2e-3, 1e-4, 1e-4]
+slv = scipy_odeint(f1, x0, t0=0, t1=10, last=False, h=1e-2)
+
+plt.figure(1)
+plt.plot(slv[:,0], slv[:,1])
+plt.grid(True)
+plt.show()
+
+print slv.shape

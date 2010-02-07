@@ -314,7 +314,7 @@ class MechanicalFrame:
         
         q_indep = [q for q in self.q_list if q.diff(t) in self.u_independent]
         q_dep = [q for q in self.q_list if q.diff(t) in self.u_dependent]
-
+        
         # Calculating equations
         eqns = {}
         i = 0
@@ -338,6 +338,7 @@ class MechanicalFrame:
                 eqns[self.u_dependent[i]] = self.u_dependent[i] - self.dhc_eqns[i]
 
         self.shulgins_equations = eqns
+        
         return self.shulgins_equations
 
     def define_equilibrium_point(self, motion_equations={}):
