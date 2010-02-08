@@ -105,11 +105,11 @@ p0 = {
     # Ball
     m: 15e-3, r: 9.5e-3, k: 7.0/5, J: 5.41e-7,
     # Beam - steel rod
-    l: 400e-3, l1: 160e-3, R: 55e-3, M: 0.5, Jm: 2.66e-2,
+    l: 400e-3, l1: 160e-3, R: 55e-3, M: 0.3, Jm: 2.66e-2,
     # Electric part
-    Ra: 9, La: 0.2e-3, K2: 10, Kb: 10,
+    Ra: 9, La: 0.2e-3, K2: 1.4, Kb: 1,
     # Other
-    g: 9.8, rho0: 200e-3, Kg: 75
+    g: 9.8, rho0: 20e-2, Kg: 75
 }
 
 # Уравнения возмущенного движения
@@ -136,8 +136,8 @@ B = Matrix([0, 0, 0, 0, 75*10/9])
 #pprint(B)
 
 #pprint(ctrb(A,B).tolist())
-#if not is_controllable(A, B):
-#    print "Pair A,B is not controllable."
+if not is_controllable(A, B):
+    print "Pair A,B is not controllable."
     
 reg = LQRegulator(A, B)
 u = reg.find_control(time=5)
@@ -148,15 +148,20 @@ def f1(x, t):
     return mtx2row(dx)
 
 def f2(x, t):
-    dx = A * matrix(x).transpose() + B * u
+    dx = (A  + B * u) * matrix(x).transpose()
     return mtx2row(dx)
 
 x0 = [1e-3, 0.004, 2e-3, 1e-4, 1e-4]
-slv = scipy_odeint(f1, x0, t0=0, t1=10, last=False, h=1e-2)
+slv = scipy_odeint(f1, x0, t0=0, t1=50, last=False, h=1e-2)
+
+t = slv[:, 0]
+x1 = slv[:, 1]
+x2 = slv[:, 2]
+x3 = slv[:, 3]
+dx1 = slv[:, 4]
+dx2 = slv[:, 5]
 
 plt.figure(1)
-plt.plot(slv[:,0], slv[:,1])
+plt.plot(t, x1, 'red', t, x2, 'green', t, x3, 'blue', t, dx1, 'orange', t, dx2, 'black')
 plt.grid(True)
 plt.show()
-
-print slv.shape

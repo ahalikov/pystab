@@ -115,9 +115,9 @@ p0 = {
     # Ball
     m: 15e-3, r: 9.5e-3, k: 7.0/5, J: 5.41e-7,
     # Beam - steel rod
-    l: 400e-3, l1: 160e-3, R: 55e-3, M: 0.5, Jm: 2.66e-2,
+    l: 400e-3, l1: 160e-3, M: 0.3, R: 55e-3, Jm: 2.66e-2,
     # Electric part
-    Ra: 9, La: 0.2e-3, K2: 1.4, Kb: 1e-1,
+    Ra: 9, La: 0.2e-3, K2: 1.4, Kb: 1,
     # Other
     g: 9.8, rho0: 200e-3, Kg: 75.0
 }
@@ -130,7 +130,7 @@ peqns = bb.form_perturbed_equations(eqns, manifold)
 #pprint(peqns[dgamma])
 
 #fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
-#fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
+fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
 #dx6 = bb.x[dtheta].diff(t)
 #pprint(fa_eqns)
 
@@ -140,7 +140,7 @@ x3 = bb.x[alpha]
 x5 = bb.x[drho]
 x6 = bb.x[dtheta]
 
-printm(bb.reduced_lagrangian)
+#printm(bb.reduced_lagrangian)
 tmp1 = bb.dhc_matrix[0, 1]*pdiff(bb.reduced_lagrangian, alpha)
 for q in bb.q_list:
     u = q.diff(t)
@@ -158,26 +158,24 @@ eqn = peqns[d2theta]
 #tmp = (pdiff(eqn, x3).subs({x1:0, x3:0, x5:0, x6:0}))
 #pprint(tmp)
 
-
-
 # Матрица коэффициентов
-#dx =  [x.diff(t) for x in bb.x_list]
-#fa_eqns_sorted = [fa_eqns[k] for k in dx]
-#A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
+dx =  [x.diff(t) for x in bb.x_list]
+fa_eqns_sorted = [fa_eqns[k] for k in dx]
+A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
 #pprint(A)
-#print A.tolist()
+print A.tolist()
 
 # Корни характ. многочлена
 #eig = A.eigenvals()
 #pprint(eig)
 
-#B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
+B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
 #B = Matrix([0, 0, 0, 1/La, 0, 0])
 #pprint(B)
 
 #C = ctrb(A, B)
 #pprint(C)
 
-#reg = LQRegulator(A, B)
-#u = reg.find_control(time=5)
-#print u
+reg = LQRegulator(A, B)
+u = reg.find_control(time=10)
+print u
