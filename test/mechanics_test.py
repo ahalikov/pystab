@@ -1,7 +1,7 @@
 
 import unittest
 
-from pymech import solve_slae_by_gauss
+from pystab.mechanics import solve_slae_by_gauss
 from sympy.core.symbol import symbols
 
 class  SolveSlaeByGaussTestCase(unittest.TestCase):
