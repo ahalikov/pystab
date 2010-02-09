@@ -3,14 +3,13 @@
 __author__="Artur"
 __date__ ="$26.01.2010 16:07:56$"
 
-from ctypes import ArgumentError
 from numpy import array, matrix, zeros, eye, sum, where
 from numpy.linalg import svd, inv
 from pystab.integration.ode import *
 
 def ctrb(A, B):
     """
-    Calculates the controllability matrix for pair A, B.
+    Calculates the matrix of controllability for pair A, B.
     """
     n = A.shape[0]
     assert n == A.shape[1] and n == B.shape[0]
@@ -23,10 +22,17 @@ def ctrb(A, B):
     return C
 
 def matrix_rank(A, tol=1e-8):
+    """
+    Calculates the rank of a matrix.
+    """
     s = svd(A, compute_uv=0)
     return sum(where(s > tol, 1, 0))
 
 def row2mtx(row, n):
+    """
+    Row-to-matrix conversion.
+    [a, b, c, d] -> [[a, b], [c, d]]
+    """
     mtx = matrix(zeros([n, n]))
     for i in range(n):
         for j in range(n):
@@ -37,6 +43,10 @@ def row2mtx(row, n):
     return mtx
 
 def mtx2row(mtx):
+    """
+    Matrix-to-row conversion.
+    [[a, b], [c, d]] -> [a, b, c, d]
+    """
     row = []
     for i in range(mtx.shape[0]):
         for j in range(mtx.shape[1]):
@@ -44,11 +54,16 @@ def mtx2row(mtx):
     return row
 
 def is_controllable(A, B):
+    """
+    Checks the controllability of pair A, B.
+    """
     rank = matrix_rank(ctrb(A, B))
     return A.shape[0] == rank
 
 class LQRegulator:
-
+    """
+    Linear - quadratic regulator.
+    """
     def __init__(self, A, B):
 
         assert A.shape[0] == A.shape[1]
@@ -62,40 +77,32 @@ class LQRegulator:
         self.beta = eye(self.control_dim)
         self.control = []
 
-    def find_control(self, time=5):
+    def find_control(self, time=10):
         """
         Calculates the optimal control.
         """
-        n = self.B.shape[0]
         # Checking controllability
         #if not is_controllable(self.A, self.B):
         #    raise ArgumentError, "Pair A,B is not controllable."
         # Initial values
-        C0 = array([0 for i in range(n*n)])
+        C0 = array([0 for i in range(self.sys_dim**2)])
         # Integration of diff. equations
-        C = scipy_odeint(self.deriv, C0, time, h=1e-2)
-        self.C = row2mtx(C, n)
+        C = scipy_odeint(self.deriv, C0, time)
+        self.C = row2mtx(C, self.sys_dim)
         self.control = -inv(self.beta) * self.B.transpose() * self.C
         return self.control
 
     def deriv(self, C, t):
         """
-        Right part of the Lyapunov-Bellman-Riccati equation
+        Right part of the Lyapunov-Bellman-Riccati equation.
         """
-        m = self.B.shape[0]
         BBiBt = self.B * inv(self.beta) * self.B.transpose()
-        C_mtx = row2mtx(matrix(C), m)
+        C_mtx = row2mtx(matrix(C), self.sys_dim)
         res = -C_mtx*BBiBt*C_mtx + self.A.transpose()*C_mtx + C_mtx*self.A + self.alpha
         return mtx2row(res)
 
     def get_control(self):
         return self.control
-
-class StateSpace:
-    def __init__(self, A, B, C):
-        self.A = A
-        self.B = B
-        self.C = C
 
 """
 For quick tests

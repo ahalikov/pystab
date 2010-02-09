@@ -73,24 +73,25 @@ def pdiff(expr, arg):
     Partial derivative.
     """
     s = Symbol('_s_')
-    op = lambda f, x: diff(f.subs(x, s), s).subs(s, x)
+    op = lambda x: diff(expr.subs(x, s), s).subs(s, x)
     if isinstance(arg, list):
-        return [op(expr, i) for i in arg]
+        return map(op, arg)
     else:
-        return op(expr, arg)
+        return op(arg)
 
-def lagrange_equations_lhs(lagrangian, q):
+def lagrange_equations_lhs(L, q):
     """
-    Left-hand side of Lagrange equation.
+    Left-hand side of Lagrange equation
+    L - function of Lagrange.
     """
-    op = lambda f, x: diff(pdiff(f, diff(x, t)), t) - pdiff(f, x)
+    op = lambda x: diff(pdiff(L, diff(x, t)), t) - pdiff(L, x)
     if isinstance(q, list):
-        return [op(lagrangian, qi) for qi in q]
+        return map(op, q)
     elif isinstance(q, Matrix):
         res = zeros(q.shape)
         for i in range(res.shape[0]):
             for j in range(res.shape[1]):
-                res[i, j] = op(lagrangian, q[i, j])
+                res[i, j] = op(q[i, j])
         return res
     else:
         return op(lagrangian, q)
@@ -274,6 +275,7 @@ class MechanicalFrame:
         """
         Calculates Lagrange's equations. The method uses undetermined
         multipliers if the system has differential constraints.
+        TODO: this should be finished end tested.
         """
         m = len(self.q_list)
         n = len(self.dhc_eqns)
@@ -297,6 +299,7 @@ class MechanicalFrame:
                 eqns[k] = simplify(eqns[k])
 
         self.lagrange_eqnuations = eqns
+        
         return self.lagrange_eqnuations
 
     def form_shulgins_equations(self, normalized=False, packed=False, expanded=True):
