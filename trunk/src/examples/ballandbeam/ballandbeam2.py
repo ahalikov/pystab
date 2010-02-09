@@ -7,7 +7,10 @@ __date__ ="$26.01.2010 16:07:56$"
 Ball&Beam System
 """
 
+import numpy
+from numpy import linalg as la
 import matplotlib.pyplot as plt
+
 from pystab.stability import *
 from pystab.mechanics import *
 
@@ -69,7 +72,7 @@ bb.form_constraints_matrix([dhc_eqn], [dalpha])
 
 # Уравнения Шульгина для r, theta, alpha
 eqns = bb.form_shulgins_equations(normalized=True, expanded=False)
-#printm(eqns[d2theta])
+pprint(eqns[d2rho])
 
 # Добавляю параметры уравнения
 p2 = bb.add_parameters('La Ra Kb K2 U U0 gamma0')
@@ -97,8 +100,8 @@ q0[alpha] = 0
 
 #print q0, u0
 manifold = bb.form_equilibrium_manifold_equations(eqns)
-print "Equilibrium point:"
-pprint(manifold)
+#print "Equilibrium point:"
+#pprint(manifold)
 
 # Численные параметры
 p0 = {
@@ -107,14 +110,14 @@ p0 = {
     # Beam - steel rod
     l: 400e-3, l1: 160e-3, R: 55e-3, M: 0.3, Jm: 2.66e-2,
     # Electric part
-    Ra: 9, La: 0.2e-3, K2: 1.4, Kb: 1,
+    Ra: 9, La: 0.2e-3, K2: 1.4, Kb: 0.05,
     # Other
     g: 9.8, rho0: 20e-2, Kg: 75
 }
 
 # Уравнения возмущенного движения
 peqns = bb.form_perturbed_equations(eqns, manifold)
-#pprint(peqns[d2theta])
+#pprint(peqns)
 
 #fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
 fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
@@ -125,34 +128,43 @@ fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified
 dx = [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
-pprint(A)
-#print A.tolist()
 
 # Корни характ. многочлена
-#eig = A.eigenvals()
-#pprint(eig)
+eig = A.eigenvals()
+for e in eig:
+    print e
 
 B = Matrix([0, 0, 0, 0, 75*10/9])
 #pprint(B)
 
 #pprint(ctrb(A,B).tolist())
-if not is_controllable(A, B):
-    print "Pair A,B is not controllable."
+#if not is_controllable(A, B):
+#    print "Pair A,B is not controllable."
     
-reg = LQRegulator(A, B)
-u = reg.find_control(time=5)
+#reg = LQRegulator(A, B)
+#u = reg.find_control(time=5)
 #print u
 
 def f1(x, t):
+    # Ограничение на положение, связанное с длинной желоба.
+    #print '1: ' + str(x[0])
+    if x[0] < 0:
+        x[0] = 0.0
+    elif x[0] > 0.4:
+        x[0] = 0.4
+    #print '2: ' + str(x[0])
     dx = A * matrix(x).transpose()
+    #print dx[0, 0]
     return mtx2row(dx)
 
 def f2(x, t):
     dx = (A  + B * u) * matrix(x).transpose()
     return mtx2row(dx)
 
-x0 = [1e-3, 0.004, 2e-3, 1e-4, 1e-4]
-slv = scipy_odeint(f1, x0, t0=0, t1=50, last=False, h=1e-2)
+"""
+x0 = [0.02, 0, 0, 0, 0]
+slv = scipy_odeint(f1, x0, t0=0, t1=50, last=False, h=1e-1)
+print slv[:, 1]
 
 t = slv[:, 0]
 x1 = slv[:, 1]
@@ -162,6 +174,10 @@ dx1 = slv[:, 4]
 dx2 = slv[:, 5]
 
 plt.figure(1)
-plt.plot(t, x1, 'red', t, x2, 'green', t, x3, 'blue', t, dx1, 'orange', t, dx2, 'black')
+plt.plot(t, x1, 'red')
+#plt.plot(t, x1, 'red', t, x2, 'green', t, x3, 'blue', t, dx1, 'orange', t, dx2, 'black')
 plt.grid(True)
 plt.show()
+"""
+
+#End

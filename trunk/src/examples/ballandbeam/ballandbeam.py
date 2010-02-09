@@ -134,24 +134,6 @@ fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified
 #dx6 = bb.x[dtheta].diff(t)
 #pprint(fa_eqns)
 
-x1 = bb.x[rho]
-x2 = bb.x[theta]
-x3 = bb.x[alpha]
-x5 = bb.x[drho]
-x6 = bb.x[dtheta]
-
-#printm(bb.reduced_lagrangian)
-tmp1 = bb.dhc_matrix[0, 1]*pdiff(bb.reduced_lagrangian, alpha)
-for q in bb.q_list:
-    u = q.diff(t)
-    if u in bb.x:
-        tmp1 = tmp1.subs(u, bb.x.get(u) + bb.u0.get(u))
-    tmp1 = tmp1.subs(q, bb.x.get(q) + bb.q0.get(q))
-
-tmp1 = pdiff(tmp1, x2)
-
-#printm(tmp1)
-
 x_0 = [(x, 0) for x in bb.x.values()]
 
 eqn = peqns[d2theta]
@@ -163,19 +145,19 @@ dx =  [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
 #pprint(A)
-print A.tolist()
+#print A.tolist()
 
 # Корни характ. многочлена
-#eig = A.eigenvals()
-#pprint(eig)
+eig = A.eigenvals()
+pprint(eig)
 
-B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
+#B = Matrix([0, 0, 0, 1/0.2e-3, 0, 0])
 #B = Matrix([0, 0, 0, 1/La, 0, 0])
 #pprint(B)
 
 #C = ctrb(A, B)
 #pprint(C)
 
-reg = LQRegulator(A, B)
-u = reg.find_control(time=10)
-print u
+#reg = LQRegulator(A, B)
+#u = reg.find_control(time=10)
+#print u
