@@ -35,8 +35,8 @@ def f2(x, t):
     dx = (A + B * u2) * matrix(x).transpose()
     return mtx2row(dx)
 
-x0 = [1e-3, 0.004, 2e-3, 1e-4, 1e-4, 1e-4]
-slv = scipy_odeint(f1, x0, t0=0, t1=50, last=False, h=1e-2)
+x0 = [0.03, 0, 0, 0, 0, 0]
+slv = scipy_odeint(f2, x0, t0=0, t1=50, last=False, h=1e-2)
 
 #print slv
 #print len(slv[:,0])
@@ -55,7 +55,7 @@ plt.plot(t, x1, label=r'Ball position $\rho$')
 plt.xlabel('t')
 plt.ylabel(r'$\rho$')
 plt.grid(True)
-plt.legend(loc=3)
+plt.legend(loc=2)
 
 plt.subplot(222)
 plt.plot(t, x2, label=r'Gear angle $\theta$', color='green')
@@ -76,7 +76,7 @@ plt.plot(t, dx1, label=r'Ball velocity $\dot_\rho$')
 plt.plot(t, dx2, label=r'Gear velocity $\dot_\theta$', color='green')
 plt.xlabel('t')
 plt.grid(True)
-plt.legend(loc=3)
+plt.legend(loc=4)
 
 #t, x3, 'blue', t, x4, 'orange', t, dx1, 'gray', t, dx2, 'black'
 
