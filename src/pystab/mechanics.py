@@ -94,7 +94,7 @@ def lagrange_equations_lhs(L, q):
                 res[i, j] = op(q[i, j])
         return res
     else:
-        return op(lagrangian, q)
+        return op(q)
 
 def solve_slae_by_gauss(eqns, vars):
     """
@@ -113,18 +113,20 @@ def solve_slae_by_gauss(eqns, vars):
             res[j] = res[j].subs(vars[i], res[i])
     return dict(zip(vars, res))
 
-def normalize(equations, expanded=True):
+def normalize(equations):
     """
     Normalization of differential equations.
     """
     if not isinstance(equations, dict):
         raise ArgumentError, "equations must be dict"
+
     coeffs = {}
     neqns = {}
     vars = []
+
     i = 1
-    for k in equations.keys():
-        tmp = equations[k]
+    for k, eqn in equations.iteritems():
+        tmp = eqn
         coeffs[k] = {}
         neqns[k] = 0
         j = 1
@@ -133,11 +135,11 @@ def normalize(equations, expanded=True):
             if not isinstance(c, Zero) and not c is 0:
                 c_name = Symbol('C' + str(i) + str(j))
                 coeffs[k][c_name] = c
-                tmp -= c*a
+                tmp = expand(tmp - c*a)
                 neqns[k] += c_name * a
                 vars.append(a)
                 j += 1
-        if tmp is not 0:
+        if not isinstance(tmp, Zero) and tmp is not 0:
             c_name = Symbol('C' + str(i) + '0')
             coeffs[k][c_name] = tmp
             neqns[k] += c_name
@@ -145,11 +147,18 @@ def normalize(equations, expanded=True):
     neqns = solve_slae_by_gauss(neqns.values(), vars)
     for k in neqns:
         for ck in coeffs[k]:
-            if expanded:
-                neqns[k] = expand(neqns[k].subs(ck, coeffs[k][ck]))
-            else:
-                neqns[k] = neqns[k].subs(ck, coeffs[k][ck])
+            neqns[k] = neqns[k].subs(ck, coeffs[k][ck])
+
     return neqns
+
+def linearize(equations, point):
+    result = {}
+    for key, eqn in equations.iteritems():
+        result[key] = 0
+        for x, x0 in point.iteritems():
+            result[key] += pdiff(eqn, x).subs(point) * (x - x0)
+
+    return result
 
 class MechanicalFrame:
 
@@ -183,7 +192,7 @@ class MechanicalFrame:
         self.dhc_matrix = Matrix()
         #self.template = MatrixTemplate()
 
-    def add_coordinates(self, string, number=1):
+    def add_coordinates(self, string='q', number=1):
         """
         Declares generalized coordinates, velocities and accelerations.
         """
@@ -209,8 +218,7 @@ class MechanicalFrame:
                 self.u_list.append(q_list.diff(t))
 
         self.u_names_dict = dict(zip(self.u_list,
-            [Symbol('qd' + str(i+1)) for i in range(len(self.q_list))]
-        ))
+            [Symbol('qd' + str(i+1)) for i in range(len(self.q_list))]))
 
         # Accelerations
         try:
@@ -223,8 +231,7 @@ class MechanicalFrame:
                 self.a_list.append(qdot_list.diff(t))
 
         self.a_names_dict = dict(zip(self.a_list,
-            [Symbol('q2d' + str(i+1)) for i in range(len(self.q_list))]
-        ))
+            [Symbol('q2d' + str(i+1)) for i in range(len(self.q_list))]))
 
         self.q_dim += number
 
@@ -302,7 +309,7 @@ class MechanicalFrame:
         
         return self.lagrange_eqnuations
 
-    def form_shulgins_equations(self, normalized=False, packed=False, expanded=True):
+    def form_shulgins_equations(self, normalized=False, first_order=False):
         """
         Calculates Shulgin's equations for systems with (or without)
         redundant coordinates.
@@ -331,7 +338,10 @@ class MechanicalFrame:
             i += 1
 
         if normalized:
-            eqns = normalize(eqns, expanded)
+            eqns = normalize(eqns)
+
+        if first_order:
+            eqns = self.reduce_equations_order(eqns)
             
         # Adding diff. holonomic constraints equations
         for i in range(n):
@@ -415,7 +425,7 @@ class MechanicalFrame:
             if k in self.a_list:
                 x_i = Symbol('x' + str(n + i))(t)
                 self.x_list.append(x_i)
-                self.x[self.find_velocity(k)] = x_i
+                self.x[self.__find_velocity(k)] = x_i
                 i += 1
         
         for k in motion_equations.keys():
@@ -446,10 +456,10 @@ class MechanicalFrame:
         x_0 = [(x, 0) for x in self.x.values()]
 
         # OK, now lets find them
-        for k in motion_equations.keys():
+        for k, eqn in motion_equations.iteritems():
             tmp = 0
             for q, x in self.x.iteritems():
-                tmp += pdiff(motion_equations[k], x).subs(x_0) * x
+                tmp += pdiff(eqn, x).subs(x_0) * x
             if len(q0):
                 tmp = tmp.subs(q0)
             if len(u0):
@@ -458,34 +468,58 @@ class MechanicalFrame:
                 tmp = tmp.subs(params)
             if simplified:
                 tmp = simplify(tmp)
-            x1 = self.x.get(self.find_coordinate(k))
+            x1 = self.x.get(self.__find_coordinate(k))
             if not k in self.a_list:
                 self.fa_equations[x1.diff(t)] = tmp
             else:
-                x2 = self.x.get(self.find_velocity(k), 0)
+                x2 = self.x.get(self.__find_velocity(k), 0)
                 self.fa_equations[x1.diff(t)] = x2
                 self.fa_equations[x2.diff(t)] = tmp
             
         return self.fa_equations
 
+    def subs_params(self, params):
+        if len(q0):
+            tmp = tmp.subs(q0)
+        if len(u0):
+            tmp = tmp.subs(u0)
+        if len(params):
+            tmp = tmp.subs(params)
+
     def create_matrix_of_coeff(self, expr_list, vars):
         n = len(expr_list)
         m = len(vars)
         matrix = zeros([n, m])
-        for i in range(0, n):
-            for j in range(0, m):
+        for i in range(n):
+            for j in range(m):
                 matrix[i, j] = pdiff(expr_list[i], vars[j])
         return matrix
 
-    def find_coordinate(self, var):
-        for q in self.q_list:
-            if diff(q, t) == var or diff(diff(q, t), t) == var:
-                return q
-
-    def find_velocity(self, var):
-        for u in self.u_list:
-            if diff(u, t) == var:
-                return u
+    def reduce_equations_order(self, eqns_dict):
+        """
+        Понижает порядок системы уравнений.
+        """        
+        result = {}
+        subs_acc = {}
+        subs_vel = {}
+        
+        for key, eqn in eqns_dict.iteritems():
+            if key not in self.a_list:
+                result[key] = eqn
+            else:
+                new_q, new_u, new_a = self.add_coordinates()
+                old_u = self.__find_velocity(key)
+                result[old_u] = new_q
+                result[new_u] = eqn
+                # d2q -> dq
+                subs_acc[key] = new_u
+                # dq -> q
+                subs_vel[old_u] = new_q
+                
+        for key, eqn in result.iteritems():
+            result[key] = eqn.subs(subs_acc).subs(subs_vel)
+            
+        return result
 
     def set_dhc_matrix(self, matrix, u_dep_list):
         """
@@ -510,5 +544,23 @@ class MechanicalFrame:
         Sets differentiated holonomic constraints equations
         """
         self.dhc_eqns = dhc_eqns_list
+        
+    def __find_coordinate(self, speed_or_acc):
+        """
+        Возвращает координату по скорости или ускорению
+        """
+        for q in self.q_list:
+            if diff(q, t) == speed_or_acc or diff(diff(q, t), t) == speed_or_acc:
+                return q
+        return None
+
+    def __find_velocity(self, acc):
+        """
+        Возвращает скорость по ускорению
+        """
+        for u in self.u_list:
+            if diff(u, t) == acc:
+                return u
+        return None
 
 #End

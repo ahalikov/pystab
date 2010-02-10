@@ -68,8 +68,8 @@ dhc_eqn = collect(dhc_eqn[dalpha], dtheta)
 bb.form_constraints_matrix([dhc_eqn], [dalpha])
 
 # Уравнения Шульгина для r, theta, alpha
-eqns = bb.form_shulgins_equations(normalized=True, expanded=False)
-#pprint(eqns[d2theta])
+eqns = bb.form_shulgins_equations(normalized=True)
+#pprint(eqns[dalpha])
 
 # Добавляю еще одну переменную - силу тока
 current = bb.add_coordinates('q', 1)
@@ -132,11 +132,11 @@ peqns = bb.form_perturbed_equations(eqns, manifold)
 #fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
 fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
 #dx6 = bb.x[dtheta].diff(t)
-#pprint(fa_eqns)
+pprint(fa_eqns)
 
 x_0 = [(x, 0) for x in bb.x.values()]
 
-eqn = peqns[d2theta]
+#eqn = peqns[d2theta]
 #tmp = (pdiff(eqn, x3).subs({x1:0, x3:0, x5:0, x6:0}))
 #pprint(tmp)
 
@@ -144,7 +144,7 @@ eqn = peqns[d2theta]
 dx =  [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
-#pprint(A)
+pprint(A)
 #print A.tolist()
 
 # Корни характ. многочлена
