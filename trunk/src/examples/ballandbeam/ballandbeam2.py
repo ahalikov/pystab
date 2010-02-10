@@ -4,9 +4,11 @@ __author__="Artur"
 __date__ ="$26.01.2010 16:07:56$"
 
 """
-Ball&Beam System
+Ball on a Beam system.
+Система "Шарик на желобе".
 """
 
+from pystab.mechanics import linearize
 import numpy
 from numpy import linalg as la
 import matplotlib.pyplot as plt
@@ -14,7 +16,7 @@ import matplotlib.pyplot as plt
 from pystab.stability import *
 from pystab.mechanics import *
 
-bb = MechanicalFrame(name='Ball on the Beam')
+bb = MechanicalFrame(name='Ball on a Beam')
 
 """
 Обобщенные координаты
@@ -28,10 +30,9 @@ rho, theta, alpha = q
 drho, dtheta, dalpha = u
 d2rho, d2theta, d2alpha = a
 
-# Параметры системы
-p1 = bb.add_parameters('m r J M l l1 R Jm g k Kg rho0 tau')
-m, r, J, M, l, l1, R, Jm, g, k, Kg, rho0, tau = p1
 """
+Параметры системы:
+
 m, r, J - масса, радиус и момент инерции шарика
 M, l - масса и длина желоба
 l1 - длина рычага, соединяющего колесо двигателя с желобом
@@ -43,41 +44,51 @@ rho0 - исследуемое положение шарика
 tau - управляющий момент на двигателе (tau = Kg * K2 * i)
 где K2 - это постоянная момента двигателя, i - ток.
 """
+p1 = bb.add_parameters('m r J M l l1 R Jm g k Kg rho0 tau')
+m, r, J, M, l, l1, R, Jm, g, k, Kg, rho0, tau = p1
 
-# Обобщенные силы
+"""
+Q - обобщенные силы,
+T - кинетическая энергия,
+P - потенциальная энергия,
+L - функция Лагранжа.
+"""
 Q = bb.add_joint_forces({r: 0, theta: tau, alpha: 0})
-
-# Кинетическая энергия
 T = 1.0/2*(k*m*drho**2 + (J + m*(rho**2))*dalpha**2 + Jm*dtheta**2)
-# Потенциальная энергия
 P = g*sin(alpha)*(m*rho + 1.0/2*M*l)
-# Функция Лагранжа
 L =  T - P
 bb.set_lagrangian(L)
 
-# Уравнение связи
+"""
+Полное и упрощенное (alpha~0, theta~0) уравнения связи.
+"""
 dhc_eqn_full = [l**2*dalpha*sin(alpha) + R**2*dtheta*sin(theta)+ \
     l*R*(dalpha - dtheta)*sin(alpha - theta) - l*R*(dtheta*sin(theta)+ \
     dalpha*sin(alpha)) + l*l1*dalpha*cos(alpha) - l1*R*dtheta*cos(theta)]
 
-# Уравнение связи когда alpha и theta ~ 0
 dhc_eqn_simple = [l*dalpha - R*dtheta]
 
 dhc_eqn = dhc_eqn_full
 
-# Уравнение связи, разрешенное относительно зависимой скорости
+"""
+Уравнение связи, разрешенное относительно зависимой скорости.
+"""
 dhc_eqn = solve(dhc_eqn, [dalpha])
 dhc_eqn = collect(dhc_eqn[dalpha], dtheta)
 bb.form_constraints_matrix([dhc_eqn], [dalpha])
 
-# Уравнения Шульгина для r, theta, alpha
-eqns = bb.form_shulgins_equations(normalized=True, expanded=False)
-pprint(eqns[d2rho])
-
-# Добавляю параметры уравнения
-p2 = bb.add_parameters('La Ra Kb K2 U U0 gamma0')
-La, Ra, Kb, K2, U, U0, gamma0 = p2
 """
+Получаем уравнения Шульгина для r, theta и alpha.
+Флаг first_order означает, что уравнения будут сразу приведены к первому порядку,
+и как следствие, увеличится размерность системы.
+"""
+eqns = bb.form_shulgins_equations(normalized=True, first_order=True)
+rho, theta, alpha, drho, dtheta = bb.q_list
+drho_old, dtheta_old, dalpha, d2rho, d2theta = bb.u_list
+#pprint(eqns[d2theta])
+"""
+Добавляем новые параметры для электрической части:
+
 La - индуктивность обмотки двигателя
 Ra - сопротивление на обмотке двигателя
 Kb - constant of the motor’s induced voltage
@@ -86,24 +97,32 @@ U - выходное напряжение (управление),
 U0 - значение напряжения на равновесии,
 gamma0 - некоторое значение тока, соответствующее положению равновесия системы.
 """
+p2 = bb.add_parameters('La Ra Kb K2 U U0 gamma0')
+La, Ra, Kb, K2, U, U0, gamma0 = p2
 
-# Делаю замену tau = Kg * K2 * (U/Ra - (Kb/Ra)*dtheta),
-# (U/Ra - (Kb/Ra)*dtheta) - из закона Киркгофа, при La~0.
+"""
+Делаем замену tau = Kg * K2 * (U/Ra - (Kb/Ra)*dtheta),
+(U/Ra - (Kb/Ra)*dtheta) - из закона Киркгофа, при La~0.
+"""
 eqns[d2theta] = eqns[d2theta].subs({tau: -(Kg*K2*Kb/Ra)*dtheta})
 #pprint(eqns)
 
-# Положение равновесия
+"""
+Положение равновесия
+"""
 q0, u0 = bb.define_equilibrium_point(eqns)
 q0[rho] = rho0
 q0[theta] = 0
 q0[alpha] = 0
+q0[drho] = 0
+q0[dtheta] = 0
 
-#print q0, u0
 manifold = bb.form_equilibrium_manifold_equations(eqns)
-#print "Equilibrium point:"
 #pprint(manifold)
 
-# Численные параметры
+"""
+Численные параметры
+"""
 p0 = {
     # Ball
     m: 15e-3, r: 9.5e-3, k: 7.0/5, J: 5.41e-7,
@@ -115,24 +134,38 @@ p0 = {
     g: 9.8, rho0: 20e-2, Kg: 75
 }
 
-# Уравнения возмущенного движения
+"""
+Линеаризованные уравнения движения
+"""
+eqns = linearize(eqns, q0)
+pprint(eqns)
+for k in eqns:
+    eqns[k] = eqns[k].subs(p0)
+pprint(eqns)
+
+"""
+Уравнения возмущенного движения и уравнения первого приближения
+
 peqns = bb.form_perturbed_equations(eqns, manifold)
-#pprint(peqns)
-
-#fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
 fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified=False)
-#dx6 = bb.x[dtheta].diff(t)
+#fa_eqns = bb.form_first_approximation_equations(peqns, q0, simplified=False)
+#pprint(peqns)
 #pprint(fa_eqns)
+"""
 
-# Матрица коэффициентов
+"""
+Матрица коэффициентов уравнений движения системы.
+
 dx = [x.diff(t) for x in bb.x_list]
 fa_eqns_sorted = [fa_eqns[k] for k in dx]
 A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
 
-# Корни характ. многочлена
+Корни характ. многочлена
+
 eig = A.eigenvals()
 for e in eig:
     print e
+"""
 
 B = Matrix([0, 0, 0, 0, 75*10/9])
 #pprint(B)
