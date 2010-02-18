@@ -339,9 +339,6 @@ class MechanicalFrame:
 
         if normalized:
             eqns = normalize(eqns)
-
-        if first_order:
-            eqns = self.reduce_equations_order(eqns)
             
         # Adding diff. holonomic constraints equations
         for i in range(n):
@@ -349,6 +346,9 @@ class MechanicalFrame:
                 eqns[self.u_dependent[i]] = self.dhc_eqns[i]
             else:
                 eqns[self.u_dependent[i]] = self.u_dependent[i] - self.dhc_eqns[i]
+
+        if first_order:
+            eqns = self.reduce_equations_order(eqns)
 
         self.shulgins_equations = eqns
         
