@@ -55,8 +55,11 @@ L - функция Лагранжа.
 """
 Q = bb.add_joint_forces({r: 0, theta: tau, alpha: 0})
 T = 1.0/2*(k*m*drho**2 + (J + m*(rho**2))*dalpha**2 + Jm*dtheta**2)
+#printm(T)
 P = g*sin(alpha)*(m*rho + 1.0/2*M*l)
+#printm(P)
 L =  T - P
+#printm(L)
 bb.set_lagrangian(L)
 
 """
@@ -67,8 +70,8 @@ dhc_eqn_full = [l**2*dalpha*sin(alpha) + R**2*dtheta*sin(theta)+ \
     dalpha*sin(alpha)) + l*l1*dalpha*cos(alpha) - l1*R*dtheta*cos(theta)]
 
 dhc_eqn_simple = [l*dalpha - R*dtheta]
-
 dhc_eqn = dhc_eqn_full
+#printm(dhc_eqn)
 
 """
 Уравнение связи, разрешенное относительно зависимой скорости.
@@ -85,7 +88,19 @@ bb.form_constraints_matrix([dhc_eqn], [dalpha])
 eqns = bb.form_shulgins_equations(normalized=True, first_order=True)
 rho, theta, alpha, drho, dtheta = bb.q_list
 drho_old, dtheta_old, dalpha, d2rho, d2theta = bb.u_list
-#pprint(eqns[d2theta])
+
+q1 = Symbol('rho')(t)
+q2 = Symbol('theta')(t)
+q3 = Symbol('alpha')(t)
+q4 = q1.diff(t)
+q5 = q2.diff(t)
+q_names = {rho: q1, theta: q2, alpha: q3, drho: q4, dtheta: q5}
+def print_eqns():
+    for k, v in eqns.iteritems():
+        print str(k) + ': '
+        printm(v.subs(q_names))
+#print_eqns()
+
 """
 Добавляем новые параметры для электрической части:
 
@@ -138,7 +153,7 @@ p0 = {
 Линеаризованные уравнения движения
 """
 eqns = linearize(eqns, q0)
-pprint(eqns)
+#pprint(eqns)
 for k in eqns:
     eqns[k] = eqns[k].subs(p0)
 pprint(eqns)
@@ -155,17 +170,20 @@ fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified
 
 """
 Матрица коэффициентов уравнений движения системы.
+"""
 
-dx = [x.diff(t) for x in bb.x_list]
-fa_eqns_sorted = [fa_eqns[k] for k in dx]
-A = bb.create_matrix_of_coeff(fa_eqns_sorted, bb.x_list)
+#dx = [x.diff(t) for x in bb.x_list]
+#fa_eqns_sorted = [fa_eqns[k] for k in dx]
+eqns_sorted = [eqns[u] for u in bb.u_list]
+A = bb.create_matrix_of_coeff(eqns_sorted, bb.q_list)
+print A
 
+"""
 Корни характ. многочлена
-
+"""
 eig = A.eigenvals()
 for e in eig:
     print e
-"""
 
 B = Matrix([0, 0, 0, 0, 75*10/9])
 #pprint(B)
@@ -174,17 +192,17 @@ B = Matrix([0, 0, 0, 0, 75*10/9])
 #if not is_controllable(A, B):
 #    print "Pair A,B is not controllable."
     
-#reg = LQRegulator(A, B)
-#u = reg.find_control(time=5)
+reg = LQRegulator(A, B)
+u = reg.find_control(time=5)
 #print u
 
 def f1(x, t):
     # Ограничение на положение, связанное с длинной желоба.
     #print '1: ' + str(x[0])
-    if x[0] < 0:
-        x[0] = 0.0
-    elif x[0] > 0.4:
-        x[0] = 0.4
+    #if x[0] < 0:
+    #    x[0] = 0.0
+    #elif x[0] > 0.4:
+    #    x[0] = 0.4
     #print '2: ' + str(x[0])
     dx = A * matrix(x).transpose()
     #print dx[0, 0]
@@ -212,5 +230,23 @@ plt.plot(t, x1, 'red')
 plt.grid(True)
 plt.show()
 """
+
+q0 = [0, 0.001, 0.001, 0, 0]
+slv = scipy_odeint(f2, q0, t0=0, t1=20, last=False, h=1e-1)
+
+t = slv[:, 0]
+x1 = slv[:, 1]
+x2 = slv[:, 2]
+x3 = slv[:, 3]
+dx1 = slv[:, 4]
+dx2 = slv[:, 5]
+
+plt.figure(1)
+plt.plot(t, x1, 'red')
+#plt.plot(t, x1, 'red', t, x2, 'green', t, x3, 'blue', t, dx1, 'orange', t, dx2, 'black')
+plt.grid(True)
+plt.show()
+
+
 
 #End
