@@ -309,6 +309,66 @@ class MechanicalFrame:
         
         return self.lagrange_eqnuations
 
+    def form_voronets_equations(self, normalized=False, first_order=False):
+        """
+        Calculates Voronets equations. You are to call add_coordinates,
+        add_joint_forces, set_vis_viva, form_constraints_matrix functions
+        before using this function.
+        """
+        m = len(self.u_independent)
+        n = len(self.u_dependent)
+        assert(n, m) == self.dhc_matrix.shape
+        print 'dhc_matrix = ', self.dhc_matrix
+
+        # Let's calculate reduced vis_viva
+        reduced_vis_viva = self.vis_viva.subs(zip(self.u_dependent, self.dhc_eqns))
+        self.reduced_vis_viva = reduced_vis_viva
+
+
+        q_indep = [q for q in self.q_list if q.diff(t) in self.u_independent]
+        q_dep = [q for q in self.q_list if q.diff(t) in self.u_dependent]
+
+        # Calculating equations
+        eqns = {}
+        # T - non-reduced vis-viva
+        # You should call set_vis_viva before using this function
+        T = self.vis_viva
+        i = 0
+        for q in q_indep:
+            tmp = lagrange_equations_lhs(reduced_vis_viva, q) - self.joint_forces.get(q, 0)
+
+            k = 0
+            for q1 in q_dep:
+                tmp -= self.dhc_matrix[k, i] * (pdiff(reduced_vis_viva, q1) + self.joint_forces.get(q1, 0))
+                k += 1
+    
+            k = 0
+            for q1 in q_dep:
+                j = 0
+                tmp1 = 0
+                for q2 in q_indep:
+                    tmp2 = 0
+                    mu = 0
+                    for q3 in q_dep:
+                        tmp2 += pdiff(self.dhc_matrix[k, j], q3) * self.dhc_matrix[mu, i]
+                        mu += 1
+                    tmp1 += (pdiff(self.dhc_matrix[k, j], q) + tmp2) * diff(q2, t)
+                    j += 1                
+                tmp -= pdiff(T, diff(q1, t)) * (diff(self.dhc_matrix[k, i], t) - tmp1)
+                k += 1           
+            eqns[diff(q, t, t)] = tmp
+            i += 1
+
+        if normalized:
+            eqns = normalize(eqns)
+
+        if first_order:
+            eqns = self.reduce_equations_order(eqns)
+
+        self.voronets_equations = eqns
+
+        return self.voronets_equations
+
     def form_shulgins_equations(self, normalized=False, first_order=False):
         """
         Calculates Shulgin's equations for systems with (or without)
@@ -532,6 +592,9 @@ class MechanicalFrame:
 
     def set_lagrangian(self, expr):
         self.lagrangian = expr
+
+    def set_vis_viva(self, expr):
+        self.vis_viva = expr
 
     def set_hc_eqns(self, hc_eqns_list):
         """
