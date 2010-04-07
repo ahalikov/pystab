@@ -312,7 +312,7 @@ class MechanicalFrame:
     def form_voronets_equations(self, normalized=False, first_order=False):
         """
         Calculates Voronets equations. You are to call add_coordinates,
-        add_joint_forces, set_vis_viva, form_constraints_matrix functions
+        add_joint_forces, set_kinetic_energy, form_constraints_matrix functions
         before using this function.
         """
         m = len(self.u_independent)
@@ -320,9 +320,9 @@ class MechanicalFrame:
         assert(n, m) == self.dhc_matrix.shape
         print 'dhc_matrix = ', self.dhc_matrix
 
-        # Let's calculate reduced vis_viva
-        reduced_vis_viva = self.vis_viva.subs(zip(self.u_dependent, self.dhc_eqns))
-        self.reduced_vis_viva = reduced_vis_viva
+        # Let's calculate reduced kinetic_energy
+        reduced_kinetic_energy = self.kinetic_energy.subs(zip(self.u_dependent, self.dhc_eqns))
+        self.reduced_kinetic_energy = reduced_kinetic_energy
 
 
         q_indep = [q for q in self.q_list if q.diff(t) in self.u_independent]
@@ -330,16 +330,16 @@ class MechanicalFrame:
 
         # Calculating equations
         eqns = {}
-        # T - non-reduced vis-viva
-        # You should call set_vis_viva before using this function
-        T = self.vis_viva
+        # T - non-reduced kinetic_energy
+        # You should call set_kinetic_energy before using this function
+        T = self.kinetic_energy
         i = 0
         for q in q_indep:
-            tmp = lagrange_equations_lhs(reduced_vis_viva, q) - self.joint_forces.get(q, 0)
+            tmp = lagrange_equations_lhs(reduced_kinetic_energy, q) - self.joint_forces.get(q, 0)
 
             k = 0
             for q1 in q_dep:
-                tmp -= self.dhc_matrix[k, i] * (pdiff(reduced_vis_viva, q1) + self.joint_forces.get(q1, 0))
+                tmp -= self.dhc_matrix[k, i] * (pdiff(reduced_kinetic_energy, q1) + self.joint_forces.get(q1, 0))
                 k += 1
     
             k = 0
@@ -593,8 +593,8 @@ class MechanicalFrame:
     def set_lagrangian(self, expr):
         self.lagrangian = expr
 
-    def set_vis_viva(self, expr):
-        self.vis_viva = expr
+    def set_kinetic_energy(self, expr):
+        self.kinetic_energy = expr
 
     def set_hc_eqns(self, hc_eqns_list):
         """
