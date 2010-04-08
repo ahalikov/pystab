@@ -318,7 +318,6 @@ class MechanicalFrame:
         m = len(self.u_independent)
         n = len(self.u_dependent)
         assert(n, m) == self.dhc_matrix.shape
-        print 'dhc_matrix = ', self.dhc_matrix
 
         # Let's calculate reduced kinetic_energy
         reduced_kinetic_energy = self.kinetic_energy.subs(zip(self.u_dependent, self.dhc_eqns))
@@ -328,6 +327,15 @@ class MechanicalFrame:
         q_indep = [q for q in self.q_list if q.diff(t) in self.u_independent]
         q_dep = [q for q in self.q_list if q.diff(t) in self.u_dependent]
 
+        # make dictionary for constraints in order to substitute dependent 
+        # velocities with constraint expressions
+        
+        constraint_dict = {}
+        for i in range(n):
+            constraint_dict[self.u_dependent[i]] = 0
+            for j in range(m):
+                constraint_dict[self.u_dependent[i]] += self.dhc_matrix[i, j] * self.u_independent[j]
+        
         # Calculating equations
         eqns = {}
         # T - non-reduced kinetic_energy
@@ -355,9 +363,11 @@ class MechanicalFrame:
                     tmp1 += (pdiff(self.dhc_matrix[k, j], q) + tmp2) * diff(q2, t)
                     j += 1                
                 tmp -= pdiff(T, diff(q1, t)) * (diff(self.dhc_matrix[k, i], t) - tmp1)
-                k += 1           
-            eqns[diff(q, t, t)] = tmp
+                k += 1
+            eqns[diff(q, t, t)] = tmp.subs(constraint_dict)
             i += 1
+        for k in constraint_dict.keys():
+            eqns[k] = constraint_dict[k]
 
         if normalized:
             eqns = normalize(eqns)
@@ -497,7 +507,7 @@ class MechanicalFrame:
                 tmp = tmp.subs(q, self.x.get(q) + self.q0.get(q))
             # dx/dt = F(q0 + x) - F(q0)
             self.perturbed_equations[k] = tmp - manifold.get(k, 0)
-
+        
         return self.perturbed_equations
 
     def form_first_approximation_equations(self, motion_equations={}, q0={}, \
