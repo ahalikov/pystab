@@ -14,7 +14,7 @@ def dtwr_main():
     par = dtwr.add_parameters('A, l, R, m1, m2, m, J, C')
     A, l, R, m1, m2, m, J, C = par
     T = 1/2.* m * ((dx * cos(psi) + dy * sin(psi) + A * dpsi) ** 2 + (-dx * sin(psi) + dy * cos(psi)) ** 2) + 1/2. * m1 * ((dx * cos(psi) + dy * sin(psi) - l * dpsi) ** 2 + (-dx * sin(psi) + dy * cos(psi)) ** 2) + 1/2. * m2 * ((dx * cos(psi) + dy * sin(psi) + l * dpsi) ** 2 + (-dx * sin(psi) + dy * cos(psi)) ** 2) + 1/2. * J * dpsi ** 2 + 1/2. * C * (dphi1 ** 2 + dphi2 ** 2)
-    dtwr.set_vis_viva(T)
+    dtwr.set_kinetic_energy(T)
     
     Q = dtwr.add_joint_forces({x: 0, psi: 0, y:0, phi1: 0, phi2: 0})
 
@@ -26,23 +26,27 @@ def dtwr_main():
 
     dtwr.form_constraints_matrix([dhc_eqn[dx], dhc_eqn[dy], dhc_eqn[dphi2]], [dx, dy, dphi2])
     eqns = dtwr.form_voronets_equations()
-    print 'eqns = ', eqns
+    #print 'eqns = ', eqns
+    
+#    eqns['dx'] = dhc_eqn[dx]
+#    eqns['dy'] = dhc_eqn[dy]
+#    eqns['dphi2'] = dhc_eqn[dphi2]
 
-#    q0, u0 = dtwr.define_equilibrium_point(eqns)
-#    q10, q20, q30, q40 = q0
-#    u10, u20, u30, u40 = u0
+    q0, u0 = dtwr.define_equilibrium_point(eqns)
+    q10, q20, q30, q40, q50 = q0
+    u10, u20, u30, u40, u50 = u0
 #
 #    #test print.to remove
-#    print q0, u0
+    print q0, u0
 #
-#    manifold = dtwr.form_equilibrium_manifold_equations(eqns)
+    manifold = dtwr.form_equilibrium_manifold_equations(eqns)
 #
-#    pertubed = dtwr.form_perturbed_equations(eqns, manifold)
-#
-#    print 'Pertubed Eqns: ', pertubed
-#
-#    fa = dtwr.form_first_approximation_equations(eqns, q0, u0)
-#
-#    print '1st approximation eqns: ', fa
+    pertubed = dtwr.form_perturbed_equations(eqns, manifold)
+
+    #print 'Pertubed Eqns: ', pertubed
+
+    fa = dtwr.form_first_approximation_equations(eqns, q0, u0)
+
+    print '1st approximation eqns: ', fa
 
 dtwr_main()
