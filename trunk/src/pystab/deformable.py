@@ -20,7 +20,7 @@ const.Simple_Keldysh = 1
 const.Levin_Fufaev = 2
 const.Big_Keldysh = 3
 const.Simple_Keldysh_Consts = 'alpha, beta, gamma, N, cy, ct, nu2, rho2'
-const.Levin_Fufaev_Consts = ''
+const.Levin_Fufaev_Consts = 'alpha, beta, gamma, N, cy, ct, nu2, rho2, cx, alphaPr, betaPr, gammaPr, nu1'
 const.Big_Keldysh_Consts = ''
 const.Force_Torque_List = 'Fx, Fy, Fz, Mx, My, Mz, '
 const.Euler_Angles = 'psi, phi, chi'
@@ -64,7 +64,7 @@ class DeformableFrame (MechanicalFrame):
         if self.theory == const.Simple_Keldysh:
             unchanged_params = const.Simple_Keldysh_Consts
             self.deformation_params = 'eta0, eta1, '
-        elif self.theory == const.SimpleLevin_Fufaev:
+        elif self.theory == const.Levin_Fufaev:
             unchanged_params = const.Levin_Fufaev_Consts
             self.deformation_params = 'eta0, eta1, xi0'
         elif self.theory == const.Big_Keldysh:
@@ -86,7 +86,7 @@ class DeformableFrame (MechanicalFrame):
         # set deformation parameters
         self.__set_deformation_parameters()
 
-    def define_main_force_torque(self, string = const.Force_Torque_List):
+    def define_main_force_torque(self, dR = 0, string = const.Force_Torque_List ):
         '''
         Get string with 6 elements. Defines names for main force and torque
         '''
@@ -94,16 +94,16 @@ class DeformableFrame (MechanicalFrame):
         for p in params:
             self.main_force_torque[str(p)] = []
             for i in range (self.wheels_count):
-                if str(p) == 'Fx':
-                    self.main_force_torque[str(p)].append(0)
+                if (str(p) == 'Fx' and self.theory != const.Simple_Keldysh):
+                    self.main_force_torque[str(p)].append(pdiff(self.pot_energy, self.deformation_q['xi0'][i]))
                 if str(p) == 'Fy':
                     self.main_force_torque[str(p)].append(pdiff(self.pot_energy, self.deformation_q['eta0'][i]))
-                if str(p) == 'Fz':
-                    self.main_force_torque[str(p)].append(0)
+                if (str(p) == 'Fz' and self.theory != const.Simple_Keldysh):
+                    self.main_force_torque[str(p)].append(self.def_const['N'][i] - self.def_const['cx'][i]*dR[i])
                 if str(p) == 'Mx':
                     self.main_force_torque[str(p)].append(- pdiff(self.pot_energy, self.euler_q['chi'][i]))
-                if str(p) == 'My':
-                    self.main_force_torque[str(p)].append(0)
+                if (str(p) == 'My' and self.theory != const.Simple_Keldysh):
+                    self.main_force_torque[str(p)].append(- self.def_const['nu1'][i] * self.def_const['N'][i] * self.deformation_q['xi0'][i])
                 if str(p) == 'Mz':
                     self.main_force_torque[str(p)].append(pdiff(self.pot_energy, self.deformation_q['eta1'][i]))
         print 'main_force_torque = ', self.main_force_torque
@@ -144,6 +144,9 @@ class DeformableFrame (MechanicalFrame):
                 2 * self.def_const['nu2'][i] * self.def_const['N'][i] * self.deformation_q['eta0'][i] * \
                 self.euler_q['chi'][i] + self.def_const['rho2'][i] * self.def_const['N'][i] * self.euler_q['chi'][i] ** 2\
                 + self.def_const['ct'][i] * self.deformation_q['eta1'][i] ** 2)
+        if self.theory == const.Levin_Fufaev:
+            for i in range(self.wheels_count):
+                self.pot_energy += 1./2. * (self.def_const['cx'][i] * self.deformation_q['xi0'][i] ** 2)
         print 'P = ', self.pot_energy
         return self.pot_energy
 
@@ -169,7 +172,7 @@ class DeformableFrame (MechanicalFrame):
         print 'self.deformation_q = ', self.deformation_q
         print 'self.deformation_u = ', self.deformation_u
 
-    def define_deformation_eqns(self, vx, vy):
+    def define_deformation_eqns(self, vx, vy, R, dR):
         '''
         Define deformation eqns.
         vx - list of deformable wheels longitudinal velocity
@@ -178,17 +181,21 @@ class DeformableFrame (MechanicalFrame):
         def_params = list(symbols(self.deformation_params))
         for p in def_params:
             self.deformation_eqns[str(p)] = []
-        if self.theory == const.Simple_Keldysh:
-            for i in range(self.wheels_count):
-                self.deformation_eqns['eta0'].append(vy[i] + self.deformation_u['eta0'][i] + \
-                        vx[i] * (self.euler_q['psi'][i] + self.deformation_q['eta1'][i]))
-                self.deformation_eqns['eta1'].append(self.euler_u['psi'][i] + \
-                    self.deformation_u['eta1'][i] + \
-                        vx[i] * (self.def_const['alpha'][i] * self.deformation_q['eta0'][i]\
-                        + self.def_const['beta'][i] * self.deformation_q['eta1'][i]\
-                        + self.def_const['gamma'][i] * self.euler_q['chi'][i]))
-        elif self.theory == const.Levin_Fufaev:
-            self.deformation_eqns = {}
+        #if self.theory == const.Simple_Keldysh:
+        for i in range(self.wheels_count):
+            self.deformation_eqns['eta0'].append(vy[i] + self.deformation_u['eta0'][i] + \
+                    vx[i] * (self.euler_q['psi'][i] + self.deformation_q['eta1'][i]))
+            self.deformation_eqns['eta1'].append(self.euler_u['psi'][i] + \
+                self.deformation_u['eta1'][i] + \
+                    vx[i] * (self.def_const['alpha'][i] * self.deformation_q['eta0'][i]\
+                    + self.def_const['beta'][i] * self.deformation_q['eta1'][i]\
+                    + self.def_const['gamma'][i] * self.euler_q['chi'][i]))
+        if self.theory == const.Levin_Fufaev:
+            for i in range(self.wheels_count):                
+                self.deformation_eqns['xi0'].append(-R[i] * self.euler_u['phi'][i] + self.deformation_u['xi0'][i] +\
+                    (vx[i] * cos(self.euler_q['psi'][i] + self.deformation_q['eta1'][i]) + \
+                    vy[i] * sin(self.euler_q['psi'][i] + self.deformation_q['eta1'][i])) * \
+                    (1 + (self.def_const['alphaPr'][i] - self.def_const['gammaPr'][i] * dR[i])/self.def_const['betaPr'][i]))
         elif self.theory == const.Big_Keldysh:
             self.deformation_eqns = {}
         print 'deformation_eqns = ', self.deformation_eqns
