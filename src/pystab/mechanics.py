@@ -278,7 +278,7 @@ class MechanicalFrame:
                 tmp -= self.dhc_matrix[i, j] * self.u_independent[j]
         return self.dhc_matrix
 
-    def form_lagranges_equations(self):
+    def form_lagranges_equations(self, use_joint_forces = 0):
         """
         Calculates Lagrange's equations. The method uses undetermined
         multipliers if the system has differential constraints.
@@ -295,6 +295,12 @@ class MechanicalFrame:
             for j in range(n):
                 tmp -= self.lambda_list[j] * self.dhc_matrix[j, i]
             eqns[diff(self.q_list[i], t, t)] = tmp
+
+        #use joint forces
+        if (use_joint_forces):
+            for i in range(len(self.q_list)):
+                eqns[diff(self.q_list[i], t, t)] -=  self.joint_forces[self.q_list[i]]
+
 
         # Excluding Lagrange's multipliers
         if len(self.lambda_list):
@@ -364,7 +370,7 @@ class MechanicalFrame:
                     j += 1                
                 tmp -= pdiff(T, diff(q1, t)) * (diff(self.dhc_matrix[k, i], t) - tmp1)
                 k += 1
-            eqns[diff(q, t, t)] = tmp.subs(constraint_dict)
+            eqns[diff(q, t, t)] = simplify(tmp.subs(constraint_dict))
             i += 1
         for k in constraint_dict.keys():
             eqns[k] = constraint_dict[k]
