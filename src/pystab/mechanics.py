@@ -7,7 +7,7 @@ __date__ ="$26.01.2010 16:07:56$"
 Framework for derivation of equations of motion of mechanical systems
 in symbolic form.
 
-РњРѕРґСѓР»СЊ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ СѓСЂР°РІРЅРµРЅРёР№ РґРІРёР¶РµРЅРёСЏ РјРµС…Р°РЅРёС‡РµСЃРєРёС… СЃРёСЃС‚РµРј РІ СЃРёРјРІРѕР»СЊРЅРѕРј РІРёРґРµ.
+Модуль для получения уравнений движения механических систем в символьном виде.
 """
 
 from ctypes import ArgumentError
@@ -192,7 +192,7 @@ class MechanicalFrame:
         self.dhc_matrix = Matrix()
         #self.template = MatrixTemplate()
 
-    def add_coordinates(self, string='q', number=1):
+    def add_coordinates(self, string='q', number=1, isAcceleration = 1):
         """
         Declares generalized coordinates, velocities and accelerations.
         """
@@ -205,7 +205,7 @@ class MechanicalFrame:
                 self.q_list.append(q)
         except TypeError:
             self.q_list.append(q_list)
-        
+
         # Speeds
         try:
             for qd in qdot_list:
@@ -221,17 +221,18 @@ class MechanicalFrame:
             [Symbol('qd' + str(i+1)) for i in range(len(self.q_list))]))
 
         # Accelerations
-        try:
-            for q2d in q2dot_list:
-                self.a_list.append(q2d)
-        except TypeError:
-            if q2dot_list:
-                self.a_list.append(q2dot_list)
-            else:
-                self.a_list.append(qdot_list.diff(t))
+        if (isAcceleration):
+            try:
+                for q2d in q2dot_list:
+                    self.a_list.append(q2d)
+            except TypeError:
+                if q2dot_list:
+                    self.a_list.append(q2dot_list)
+                else:
+                    self.a_list.append(qdot_list.diff(t))
 
-        self.a_names_dict = dict(zip(self.a_list,
-            [Symbol('q2d' + str(i+1)) for i in range(len(self.q_list))]))
+            self.a_names_dict = dict(zip(self.a_list,
+                [Symbol('q2d' + str(i+1)) for i in range(len(self.q_list))]))
 
         self.q_dim += number
 
@@ -291,15 +292,14 @@ class MechanicalFrame:
         # Lagrange's multipliers
         self.lambda_list = [Symbol('lambda' + str(i)) for i in range(n)]
         for i in range(m):
-            tmp = lagrange_equations_lhs(self.lagrangian, self.q_list[i])
-            for j in range(n):
-                tmp -= self.lambda_list[j] * self.dhc_matrix[j, i]
-            eqns[diff(self.q_list[i], t, t)] = tmp
-
-        #use joint forces
-        if (use_joint_forces):
-            for i in range(len(self.q_list)):
-                eqns[diff(self.q_list[i], t, t)] -=  self.joint_forces[self.q_list[i]]
+            if diff(self.q_list[i], t, t) in self.a_list:
+                tmp = lagrange_equations_lhs(self.lagrangian, self.q_list[i])
+                for j in range(n):
+                    tmp -= self.lambda_list[j] * self.dhc_matrix[j, i]
+                eqns[diff(self.q_list[i], t, t)] = tmp
+                #use joint forces
+                if (use_joint_forces):
+                    eqns[diff(self.q_list[i], t, t)] -=  self.joint_forces.get(self.q_list[i], 0)
 
 
         # Excluding Lagrange's multipliers
@@ -312,7 +312,7 @@ class MechanicalFrame:
                 eqns[k] = simplify(eqns[k])
 
         self.lagrange_eqnuations = eqns
-        
+
         return self.lagrange_eqnuations
 
     def form_voronets_equations(self, normalized=False, first_order=False):
@@ -333,15 +333,15 @@ class MechanicalFrame:
         q_indep = [q for q in self.q_list if q.diff(t) in self.u_independent]
         q_dep = [q for q in self.q_list if q.diff(t) in self.u_dependent]
 
-        # make dictionary for constraints in order to substitute dependent 
+        # make dictionary for constraints in order to substitute dependent
         # velocities with constraint expressions
-        
+
         constraint_dict = {}
         for i in range(n):
             constraint_dict[self.u_dependent[i]] = 0
             for j in range(m):
                 constraint_dict[self.u_dependent[i]] += self.dhc_matrix[i, j] * self.u_independent[j]
-        
+
         # Calculating equations
         eqns = {}
         # T - non-reduced kinetic_energy
@@ -355,7 +355,7 @@ class MechanicalFrame:
             for q1 in q_dep:
                 tmp -= self.dhc_matrix[k, i] * (pdiff(reduced_kinetic_energy, q1) + self.joint_forces.get(q1, 0))
                 k += 1
-    
+
             k = 0
             for q1 in q_dep:
                 j = 0
@@ -367,7 +367,7 @@ class MechanicalFrame:
                         tmp2 += pdiff(self.dhc_matrix[k, j], q3) * self.dhc_matrix[mu, i]
                         mu += 1
                     tmp1 += (pdiff(self.dhc_matrix[k, j], q) + tmp2) * diff(q2, t)
-                    j += 1                
+                    j += 1
                 tmp -= pdiff(T, diff(q1, t)) * (diff(self.dhc_matrix[k, i], t) - tmp1)
                 k += 1
             eqns[diff(q, t, t)] = simplify(tmp.subs(constraint_dict))
@@ -397,10 +397,10 @@ class MechanicalFrame:
         # Let's calculate reduced lagrangian
         L = self.lagrangian.subs(zip(self.u_dependent, self.dhc_eqns))
         self.reduced_lagrangian = L
-        
+
         q_indep = [q for q in self.q_list if q.diff(t) in self.u_independent]
         q_dep = [q for q in self.q_list if q.diff(t) in self.u_dependent]
-        
+
         # Calculating equations
         eqns = {}
         i = 0
@@ -415,7 +415,7 @@ class MechanicalFrame:
 
         if normalized:
             eqns = normalize(eqns)
-            
+
         # Adding diff. holonomic constraints equations
         for i in range(n):
             if normalized:
@@ -427,7 +427,7 @@ class MechanicalFrame:
             eqns = self.reduce_equations_order(eqns)
 
         self.shulgins_equations = eqns
-        
+
         return self.shulgins_equations
 
     def define_equilibrium_point(self, motion_equations={}):
@@ -445,7 +445,7 @@ class MechanicalFrame:
         for i in range(self.q_dim):
             u = self.u_list[i]
             q = self.q_list[i]
-            u0 = Symbol('u0' + str(i+1)) if u in self.u_independent else 0
+            u0 = Symbol('u0' + str(i+1)) #if u in self.u_independent else 0
             self.u0[u] = u0
             self.q0[q] = u0*t + Symbol('q0' + str(i+1))
             # Check for positional coordinates
@@ -485,10 +485,10 @@ class MechanicalFrame:
         self.perturbed_equations = {}
         if not isinstance(motion_equations, dict):
             raise ArgumentError, "motion_equations must be dict"
-        
+
         n = self.q_dim
         m = len(self.u_dependent)
-        
+
         # Lets create array of perturbed variables
         self.x = {}
         self.x_list = []
@@ -503,7 +503,7 @@ class MechanicalFrame:
                 self.x_list.append(x_i)
                 self.x[self.__find_velocity(k)] = x_i
                 i += 1
-        
+
         for k in motion_equations.keys():
             tmp = motion_equations[k]
             for q in self.q_list:
@@ -513,7 +513,6 @@ class MechanicalFrame:
                 tmp = tmp.subs(q, self.x.get(q) + self.q0.get(q))
             # dx/dt = F(q0 + x) - F(q0)
             self.perturbed_equations[k] = tmp - manifold.get(k, 0)
-        
         return self.perturbed_equations
 
     def form_first_approximation_equations(self, motion_equations={}, q0={}, \
@@ -551,7 +550,7 @@ class MechanicalFrame:
                 x2 = self.x.get(self.__find_velocity(k), 0)
                 self.fa_equations[x1.diff(t)] = x2
                 self.fa_equations[x2.diff(t)] = tmp
-            
+
         return self.fa_equations
 
     def subs_params(self, params):
@@ -573,12 +572,12 @@ class MechanicalFrame:
 
     def reduce_equations_order(self, eqns_dict):
         """
-        РџРѕРЅРёР¶Р°РµС‚ РїРѕСЂСЏРґРѕРє СЃРёСЃС‚РµРјС‹ СѓСЂР°РІРЅРµРЅРёР№.
-        """        
+        Понижает порядок системы уравнений.
+        """
         result = {}
         subs_acc = {}
         subs_vel = {}
-        
+
         for key, eqn in eqns_dict.iteritems():
             if key not in self.a_list:
                 result[key] = eqn
@@ -591,10 +590,10 @@ class MechanicalFrame:
                 subs_acc[key] = new_u
                 # dq -> q
                 subs_vel[old_u] = new_q
-                
+
         for key, eqn in result.iteritems():
             result[key] = eqn.subs(subs_acc).subs(subs_vel)
-            
+
         return result
 
     def set_dhc_matrix(self, matrix, u_dep_list):
@@ -623,10 +622,10 @@ class MechanicalFrame:
         Sets differentiated holonomic constraints equations
         """
         self.dhc_eqns = dhc_eqns_list
-        
+
     def __find_coordinate(self, speed_or_acc):
         """
-        Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕРѕСЂРґРёРЅР°С‚Сѓ РїРѕ СЃРєРѕСЂРѕСЃС‚Рё РёР»Рё СѓСЃРєРѕСЂРµРЅРёСЋ
+        Возвращает координату по скорости или ускорению
         """
         for q in self.q_list:
             if diff(q, t) == speed_or_acc or diff(diff(q, t), t) == speed_or_acc:
@@ -635,7 +634,7 @@ class MechanicalFrame:
 
     def __find_velocity(self, acc):
         """
-        Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРєРѕСЂРѕСЃС‚СЊ РїРѕ СѓСЃРєРѕСЂРµРЅРёСЋ
+        Возвращает скорость по ускорению
         """
         for u in self.u_list:
             if diff(u, t) == acc:
