@@ -77,7 +77,7 @@ class LQRegulator:
         self.beta = eye(self.control_dim)
         self.control = []
 
-    def find_control(self, time=10):
+    def find_control(self, time=10, h=1e-3):
         """
         Calculates the optimal control.
         """
@@ -87,7 +87,7 @@ class LQRegulator:
         # Initial values
         C0 = array([0 for i in range(self.sys_dim**2)])
         # Integration of diff. equations
-        C = scipy_odeint(self.deriv, C0, time)
+        C = scipy_odeint(self.deriv, C0, time, h)
         self.C = row2mtx(C, self.sys_dim)
         self.control = -inv(self.beta) * self.B.transpose() * self.C
         return self.control
