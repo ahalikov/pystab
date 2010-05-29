@@ -12,9 +12,10 @@ import matplotlib.pyplot as plt
 """
 
 def main():
-    import examples.ballandbeam.graph
+    #import examples.ballandbeam.graph
 
-    #import examples.ballandbeam.ballandbeam2
+    #import examples.ballandbeam.ballandbeam
+    import examples.nonholonomic.chaplygin_sledge_voronets
 
     """
     A = matrix([[0, 1, 0], [1, 1, 1], [0, 0, 0]])

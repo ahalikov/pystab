@@ -1,8 +1,6 @@
 # coding=utf-8
-# To change this template, choose Tools | Templates
-# and open the template in the editor.
 
-__author__="Дина"
+__author__="пїЅпїЅпїЅпїЅ"
 __date__ ="$30.03.2010 22:59:08$"
 
 from pystab.mechanics import *
@@ -18,7 +16,7 @@ def sledge_main():
     par = sledge.add_parameters('k, g, alpha')
     k, g, alpha = par
     T = 1/2.* (dx ** 2 + dy ** 2) + 1 / 2. * k ** 2 * dphi ** 2
-    sledge.set_vis_viva(T)    
+    sledge.set_kinetic_energy(T)
     
     Q = sledge.add_joint_forces({x: g * sin(alpha), y: 0, phi: 0})
 
@@ -28,6 +26,9 @@ def sledge_main():
 
     sledge.form_constraints_matrix([dhc_eqn], [dy])
     eqns = sledge.form_voronets_equations()
-    print eqns
+    print(eqns)
+
+    #p = sledge.define_equilibrium_point(eqns)
+    #pprint(p)
     
 sledge_main()

@@ -8,7 +8,7 @@ Ball on a Beam system.
 Система "Шарик на желобе".
 """
 
-from pystab.mechanics import linearize
+from pystab.stability import matrix_rank
 import numpy
 from numpy import linalg as la
 import matplotlib.pyplot as plt
@@ -156,7 +156,7 @@ eqns = linearize(eqns, q0)
 #pprint(eqns)
 for k in eqns:
     eqns[k] = eqns[k].subs(p0)
-pprint(eqns)
+#pprint(eqns)
 
 """
 Уравнения возмущенного движения и уравнения первого приближения
@@ -176,7 +176,8 @@ fa_eqns = bb.form_first_approximation_equations(peqns, q0, params=p0, simplified
 #fa_eqns_sorted = [fa_eqns[k] for k in dx]
 eqns_sorted = [eqns[u] for u in bb.u_list]
 A = bb.create_matrix_of_coeff(eqns_sorted, bb.q_list)
-print A
+#print A
+#exit()
 
 """
 Корни характ. многочлена
@@ -184,6 +185,7 @@ print A
 eig = A.eigenvals()
 for e in eig:
     print e
+exit()
 
 B = Matrix([0, 0, 0, 0, 75*10/9])
 #pprint(B)
@@ -231,7 +233,7 @@ plt.grid(True)
 plt.show()
 """
 
-q0 = [0, 0.001, 0.001, 0, 0]
+q0 = [0.001, 0.001, 0.001, 0, 0]
 slv = scipy_odeint(f2, q0, t0=0, t1=20, last=False, h=1e-1)
 
 t = slv[:, 0]

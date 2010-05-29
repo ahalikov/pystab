@@ -6,6 +6,7 @@ __date__ ="$26.01.2010 16:07:56$"
 from numpy import array, matrix, zeros, eye, sum, where
 from numpy.linalg import svd, inv
 from pystab.integration.ode import *
+import sympy
 
 def ctrb(A, B):
     """
@@ -14,6 +15,20 @@ def ctrb(A, B):
     n = A.shape[0]
     assert n == A.shape[1] and n == B.shape[0]
     C = matrix(zeros([n, n]))
+    C[:, 0] = B
+    i = 1
+    while i < n:
+        C[:, i] = A * C[:, i-1]
+        i += 1
+    return C
+
+def sym_ctrb(A, B):
+    """
+    Calculates the matrix of controllability for pair A, B in symbolic form.
+    """
+    n = A.shape[0]
+    assert n == A.shape[1] and n == B.shape[0]
+    C = sympy.zeros([n, n])
     C[:, 0] = B
     i = 1
     while i < n:
@@ -109,9 +124,11 @@ For quick tests
 """
 def main():
     A = matrix([[0, 1, 0], [1, 0, 1], [0, 0, 0]])
-    B = matrix([0, 0, 1]).transpose()
-    lq = LQRegulator(A, B)
-    print lq.find_control()
+    B = matrix([[0, 0], [0, 1], [1, 0]])
+    C  = ctrb(A, B)
+    print C
+    #lq = LQRegulator(A, B)
+    #print lq.find_control()
 
 if __name__ == '__main__':
     main()
