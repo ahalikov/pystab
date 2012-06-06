@@ -6,6 +6,8 @@ __date__ ="$26.01.2010 16:07:56$"
 """
 Framework for derivation of equations of motion of mechanical systems
 in symbolic form.
+
+������ ��� ��������� ��������� �������� ������������ ������ � ���������� ����.
 """
 
 from ctypes import ArgumentError
@@ -15,7 +17,6 @@ from sympy import (Symbol, Function, symbols, sin, cos, tan, cot,
     solve, zeros, Derivative as D, diff, Eq, collect, Matrix, pprint,
     simplify, radsimp, fraction, together, expand)
 from sympy.printing.str import StrPrinter
-import math
 
 t = Symbol('t')
 
@@ -72,7 +73,9 @@ def pdiff(expr, arg):
     Partial derivative.
     """
     s = Symbol('_s_')
-    op = lambda x: diff(expr.subs(x, s), s).subs(s, x)
+    d = Symbol('_d_')
+    t = Symbol('t')
+    op = lambda x: diff(expr.subs(diff(x,t),d).subs(x, s), s).subs(s, x).subs(d,diff(x,t))
     if isinstance(arg, list):
         return map(op, arg)
     else:
@@ -82,8 +85,8 @@ def lagrange_equations_lhs(L, q):
     """
     Left-hand side of Lagrange equation
     L - function of Lagrange.
-    """
-    op = lambda x: diff(pdiff(L, diff(x, t)), t) - pdiff(L, x)
+    """    
+    op = lambda x: diff(pdiff(L, diff(x, t)), t) - pdiff(L, x)    
     if isinstance(q, list):
         return map(op, q)
     elif isinstance(q, Matrix):
@@ -150,14 +153,14 @@ def normalize(equations):
 
     return neqns
 
-def macloren_series(func, x, x0, order):
-    df = pdiff(func, x)
-    series = df.subs(x0) * x
-    if order > 1:
-        for i in range(1, order + 1):
-            df = pdiff(df, x)
-            series += (1.0/math.factorial(i)) * df.subs(x0) * x**i
-    return series
+def linearize(equations, point):
+    result = {}
+    for key, eqn in equations.iteritems():
+        result[key] = 0
+        for x, x0 in point.iteritems():
+            result[key] += pdiff(eqn, x).subs(point) * (x - x0)
+
+    return result
 
 class MechanicalFrame:
 
@@ -191,7 +194,7 @@ class MechanicalFrame:
         self.dhc_matrix = Matrix()
         #self.template = MatrixTemplate()
 
-    def add_coordinates(self, string='q', number=1, is_acc=1):
+    def add_coordinates(self, string='q', number=1, isAcceleration = 1):
         """
         Declares generalized coordinates, velocities and accelerations.
         """
@@ -220,7 +223,7 @@ class MechanicalFrame:
             [Symbol('qd' + str(i+1)) for i in range(len(self.q_list))]))
 
         # Accelerations
-        if is_acc:
+        if (isAcceleration):
             try:
                 for q2d in q2dot_list:
                     self.a_list.append(q2d)
@@ -278,7 +281,7 @@ class MechanicalFrame:
                 tmp -= self.dhc_matrix[i, j] * self.u_independent[j]
         return self.dhc_matrix
 
-    def form_lagrange_equations(self, use_joint_forces = 0):
+    def form_lagranges_equations(self, use_joint_forces = 1):
         """
         Calculates Lagrange's equations. The method uses undetermined
         multipliers if the system has differential constraints.
@@ -287,17 +290,18 @@ class MechanicalFrame:
         m = len(self.q_list)
         n = len(self.dhc_eqns)
         eqns = {}
-
         # Lagrange's multipliers
         self.lambda_list = [Symbol('lambda' + str(i)) for i in range(n)]
         for i in range(m):
             if diff(self.q_list[i], t, t) in self.a_list:
+                #tmp = pdiff(self.lagrangian, self.q_list[i])#
                 tmp = lagrange_equations_lhs(self.lagrangian, self.q_list[i])
                 for j in range(n):
                     tmp -= self.lambda_list[j] * self.dhc_matrix[j, i]
                 eqns[diff(self.q_list[i], t, t)] = tmp
                 #use joint forces
                 if (use_joint_forces):
+                    # 29.03 minus removed
                     eqns[diff(self.q_list[i], t, t)] -=  self.joint_forces.get(self.q_list[i], 0)
 
 
@@ -352,7 +356,7 @@ class MechanicalFrame:
 
             k = 0
             for q1 in q_dep:
-                tmp -= self.dhc_matrix[k, i] * (pdiff(reduced_kinetic_energy, q1) + self.joint_forces.get(q1, 0))
+                tmp += -self.dhc_matrix[k, i] * (pdiff(reduced_kinetic_energy, q1) + self.joint_forces.get(q1, 0))
                 k += 1
 
             k = 0
@@ -367,7 +371,7 @@ class MechanicalFrame:
                         mu += 1
                     tmp1 += (pdiff(self.dhc_matrix[k, j], q) + tmp2) * diff(q2, t)
                     j += 1
-                tmp -= pdiff(T, diff(q1, t)) * (diff(self.dhc_matrix[k, i], t) - tmp1)
+                tmp += -pdiff(T, diff(q1, t)) * (diff(self.dhc_matrix[k, i], t) - tmp1)
                 k += 1
             eqns[diff(q, t, t)] = simplify(tmp.subs(constraint_dict))
             i += 1
@@ -384,7 +388,7 @@ class MechanicalFrame:
 
         return self.voronets_equations
 
-    def form_shulgin_equations(self, normalized=False, first_order=False):
+    def form_shulgins_equations(self, normalized=False, first_order=False):
         """
         Calculates Shulgin's equations for systems with (or without)
         redundant coordinates.
@@ -405,8 +409,6 @@ class MechanicalFrame:
         i = 0
         for q in q_indep:
             tmp = lagrange_equations_lhs(L, q) - self.joint_forces.get(q, 0)
-            # Dependent velocities could arrive here so lets do a magic substitution
-            tmp = tmp.subs(zip(self.u_dependent, self.dhc_eqns))
             j = 0
             for q1 in q_dep:
                 tmp -= self.dhc_matrix[j, i] * pdiff(L, q1)
@@ -450,6 +452,12 @@ class MechanicalFrame:
             self.u0[u] = u0
             self.q0[q] = u0*t + Symbol('q0' + str(i+1))
             # Check for positional coordinates
+#            tmp = pdiff(self.lagrangian, q)
+#            if not tmp is 0 and not isinstance(tmp, Zero):
+#                # Looks like positional coordinate
+#                    self.q0[q] = self.q0[q].subs(u0, 0)
+#                    self.u0[u] = 0
+            #commented on 13.12.2011
             if len(motion_equations):
                 for k in motion_equations.keys():
                     tmp = pdiff(motion_equations[k], q)
@@ -458,6 +466,10 @@ class MechanicalFrame:
                         self.q0[q] = self.q0[q].subs(u0, 0)
                         self.u0[u] = 0
                         break
+
+#            if q in self.joint_forces.keys() and not self.joint_forces is 0 and not isinstance(self.joint_forces, Zero) :
+#                self.q0[q] = self.q0[q].subs(u0, 0)
+#                self.u0[u] = 0
         return self.q0, self.u0
 
     def form_equilibrium_manifold_equations(self, motion_equations={}, point={}):
@@ -516,8 +528,8 @@ class MechanicalFrame:
             self.perturbed_equations[k] = tmp - manifold.get(k, 0)
         return self.perturbed_equations
 
-    def form_approximated_equations(self, motion_equations={}, q0={}, \
-        u0={}, params={}, simplified=False, order=1):
+    def form_first_approximation_equations(self, motion_equations={}, q0={}, \
+        u0={}, params={}, simplified=False):
         """
         Calculates first approxamation equitions.
         """
@@ -529,14 +541,13 @@ class MechanicalFrame:
         m = len(self.u_dependent)
 
         # Point x = 0
-        x0 = [(x, 0) for x in self.x.values()]
-
+        x_0 = [(x, 0) for x in self.x.values()]
+        print 'x_0 = ', x_0
         # OK, now lets find them
         for k, eqn in motion_equations.iteritems():
             tmp = 0
             for q, x in self.x.iteritems():
-                tmp += macloren_series(eqn, x, x0, order)
-                #tmp += pdiff(eqn, x).subs(x_0) * x
+                tmp += pdiff(eqn, x).subs(x_0) * x
             if len(q0):
                 tmp = tmp.subs(q0)
             if len(u0):
@@ -554,9 +565,6 @@ class MechanicalFrame:
                 self.fa_equations[x2.diff(t)] = tmp
 
         return self.fa_equations
-
-    def aizerman_gantmaher_substitution(self, eqns):
-        return 0
 
     def subs_params(self, params):
         if len(q0):
@@ -577,7 +585,7 @@ class MechanicalFrame:
 
     def reduce_equations_order(self, eqns_dict):
         """
-        Function reduces order of equations of motion
+        �������� ������� ������� ���������.
         """
         result = {}
         subs_acc = {}
@@ -630,7 +638,7 @@ class MechanicalFrame:
 
     def __find_coordinate(self, speed_or_acc):
         """
-        Function finds coordinate by given speed or acceleration
+        ���������� ���������� �� �������� ��� ���������
         """
         for q in self.q_list:
             if diff(q, t) == speed_or_acc or diff(diff(q, t), t) == speed_or_acc:
@@ -639,7 +647,7 @@ class MechanicalFrame:
 
     def __find_velocity(self, acc):
         """
-        Function finds velosity by given speed or acceleration
+        ���������� �������� �� ���������
         """
         for u in self.u_list:
             if diff(u, t) == acc:

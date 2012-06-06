@@ -15,8 +15,8 @@ def step_rkf45(derivs, x, t, h):
 	# Calculating k1, k2, k3, k4 and k5
     try:
         k1 = map(int_h, derivs(x, t))
-        k2 = map(int_h, derivs(map(lambda xi, ki: xi + ki/2.0, x, k1), t + h/2))
-        k3 = map(int_h, derivs(map(lambda xi, ki: xi + ki/2.0, x, k2), t + h/2))
+        k2 = map(int_h, derivs(map(lambda xi, ki: xi + ki/2.0, x, k1), t + h/2.))
+        k3 = map(int_h, derivs(map(lambda xi, ki: xi + ki/2.0, x, k2), t + h/2.))
         k4 = map(int_h, derivs(map(lambda xi, ki: xi + ki, x, k3), t + h))
     except:
         print x
@@ -59,11 +59,15 @@ def scipy_odeint(derivs, x0, t1, t0=0.0, h=1e-3, last=True):
     from scipy.integrate import odeint
     n = int(round((t1 - t0)/h))
     t = linspace(0, t1, n)
-    x = odeint(derivs, x0, t)
+    x = odeint(derivs, x0, t,printmessg=1, rtol=10**(-6), atol=10**(-7), full_output=1, ixpr=True, mxstep=10**8)#, hmin=10**(-9),mxordn=4,mxords=4)
+#    x = odeint(derivs, x0, t1)
+    print 'full_output= ', x[1]
 
     # If only last value of solution is needed
+    print 'x = ', x
     if last:
-        return x[-1]
+#        return x[-1]
+        return x[0][-1]
 
     # Let's make complete solution array: time + trac
     slv = zeros([n, x.shape[1] + 1])

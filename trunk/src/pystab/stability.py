@@ -6,7 +6,6 @@ __date__ ="$26.01.2010 16:07:56$"
 from numpy import array, matrix, zeros, eye, sum, where
 from numpy.linalg import svd, inv
 from pystab.integration.ode import *
-import sympy
 
 def ctrb(A, B):
     """
@@ -14,27 +13,37 @@ def ctrb(A, B):
     """
     n = A.shape[0]
     assert n == A.shape[1] and n == B.shape[0]
-    C = matrix(zeros([n, n]))
-    C[:, 0] = B
+#    C = matrix(zeros([n, n]))
+#    C[:, 0] = B
+#    i = 1
+#    while i < n:
+#        C[:, i] = A * C[:, i-1]
+#        i += 1
+    l = B.shape[1]
+    C = matrix(zeros([n, n*l]))
+    C[:, 0:l] = B
     i = 1
     while i < n:
-        C[:, i] = A * C[:, i-1]
+        C[:, i*l:(i+1)*l] = A * C[:, (i-1)*l:i*l]
         i += 1
     return C
 
-def sym_ctrb(A, B):
+def obsrv(A, C):
     """
-    Calculates the matrix of controllability for pair A, B in symbolic form.
+    Calculates the matrix of observability for pair A, C.
     """
+    C = C.transpose()
+    A = A.transpose()
     n = A.shape[0]
-    assert n == A.shape[1] and n == B.shape[0]
-    C = sympy.zeros([n, n])
-    C[:, 0] = B
+    l = C.shape[1]
+    assert n == A.shape[1] and n == C.shape[0]
+    D = matrix(zeros([n, n*l]))
+    D[:, 0:l] = C
     i = 1
     while i < n:
-        C[:, i] = A * C[:, i-1]
+        D[:, i*l:(i+1)*l] = A * D[:, (i-1)*l:i*l]
         i += 1
-    return C
+    return D
 
 def matrix_rank(A, tol=1e-8):
     """
@@ -102,8 +111,12 @@ class LQRegulator:
         # Initial values
         C0 = array([0 for i in range(self.sys_dim**2)])
         # Integration of diff. equations
+        print 'before odeint'
+        self.deriv(C0,time)
         C = scipy_odeint(self.deriv, C0, time, h)
+        print 'after odeint'
         self.C = row2mtx(C, self.sys_dim)
+        print 'after row2mtx'
         self.control = -inv(self.beta) * self.B.transpose() * self.C
         return self.control
 
@@ -111,9 +124,12 @@ class LQRegulator:
         """
         Right part of the Lyapunov-Bellman-Riccati equation.
         """
+        print 't = ', t
         BBiBt = self.B * inv(self.beta) * self.B.transpose()
         C_mtx = row2mtx(matrix(C), self.sys_dim)
         res = -C_mtx*BBiBt*C_mtx + self.A.transpose()*C_mtx + C_mtx*self.A + self.alpha
+#        print res
+#        print mtx2row(res)
         return mtx2row(res)
 
     def get_control(self):
@@ -124,11 +140,9 @@ For quick tests
 """
 def main():
     A = matrix([[0, 1, 0], [1, 0, 1], [0, 0, 0]])
-    B = matrix([[0, 0], [0, 1], [1, 0]])
-    C  = ctrb(A, B)
-    print C
-    #lq = LQRegulator(A, B)
-    #print lq.find_control()
+    B = matrix([0, 0, 1]).transpose()
+    lq = LQRegulator(A, B)
+    print lq.find_control()
 
 if __name__ == '__main__':
     main()
