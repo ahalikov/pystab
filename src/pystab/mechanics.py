@@ -6,8 +6,6 @@ __date__ ="$26.01.2010 16:07:56$"
 """
 Framework for derivation of equations of motion of mechanical systems
 in symbolic form.
-
-������ ��� ��������� ��������� �������� ������������ ������ � ���������� ����.
 """
 
 from ctypes import ArgumentError
@@ -584,9 +582,6 @@ class MechanicalFrame:
         return matrix
 
     def reduce_equations_order(self, eqns_dict):
-        """
-        �������� ������� ������� ���������.
-        """
         result = {}
         subs_acc = {}
         subs_vel = {}
@@ -637,18 +632,12 @@ class MechanicalFrame:
         self.dhc_eqns = dhc_eqns_list
 
     def __find_coordinate(self, speed_or_acc):
-        """
-        ���������� ���������� �� �������� ��� ���������
-        """
         for q in self.q_list:
             if diff(q, t) == speed_or_acc or diff(diff(q, t), t) == speed_or_acc:
                 return q
         return None
 
     def __find_velocity(self, acc):
-        """
-        ���������� �������� �� ���������
-        """
         for u in self.u_list:
             if diff(u, t) == acc:
                 return u
