@@ -2,7 +2,7 @@
 # To change this template, choose Tools | Templates
 # and open the template in the editor.
 
-__author__="����"
+__author__="Dina Kayumova"
 __date__ ="$05.04.2010 11:03:34$"
 
 from mechanics import *
